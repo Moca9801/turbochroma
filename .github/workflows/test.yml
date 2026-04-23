@@ -24,6 +24,8 @@ jobs:
         run: ruff format --check .
       - name: Mypy
         run: mypy src
+      - name: pip-audit
+        run: pip-audit
 
   test:
     runs-on: ${{ matrix.os }}

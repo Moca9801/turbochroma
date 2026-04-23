@@ -53,3 +53,11 @@ def test_decode_round_trip() -> None:
 
 def test_decode_empty_zero_expected() -> None:
     assert decode_stored_blob("", 0) == b""
+
+
+def test_max_base64_grows_linearly_for_large_n() -> None:
+    """O(1) formula for large n (e.g. high embedding dim): bounded, no pathological int edges."""
+    n = 1_048_576
+    m = max_base64_chars_for_n_bytes(n)
+    assert m == 4 * ((n + 2) // 3)
+    assert 1_300_000 < m < 1_500_000

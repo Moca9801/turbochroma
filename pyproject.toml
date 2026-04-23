@@ -54,6 +54,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pre-commit>=3.7",
+    "pip-audit>=2.6",
 ]
 
 [project.urls]
@@ -79,6 +80,8 @@ include = [
     "CREDITS.md",
     "pyproject.toml",
     "SECURITY.md",
+    "CONTRIBUTING.md",
+    ".pre-commit-config.yaml",
 ]
 
 # ─── Ruff ────────────────────────────────────────────────────────────────

@@ -65,6 +65,15 @@ class SQ8Codec(BaseCodec):
         """Alias of :attr:`version` kept for compatibility with Minervia callers."""
         return self.version
 
+    def blobspec_fingerprint(self) -> str:
+        """Include rotation id and seed so re-indexing with a different seed is visible."""
+        rot = self.rotation
+        seed = int(getattr(rot, "seed", 0))
+        return (
+            f"1|d={self.dimension}|cv={self.version}|b={self.compressed_size_bytes}"
+            f"|rv={rot.version}|s={seed}"
+        )
+
     def compress_batch(self, vectors: np.ndarray) -> list[bytes]:
         v = vectors.astype(np.float32)
         v_rot = self.rotation.apply(v)

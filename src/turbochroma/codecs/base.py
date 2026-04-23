@@ -97,3 +97,13 @@ class BaseCodec(ABC):
         scales, codebooks, or rotations.
         """
         return None
+
+    def blobspec_fingerprint(self) -> str:
+        """Stable id for this codec config (next to the blob in Chroma metadata).
+
+        Used to detect mixed codecs / parameters on the same collection.
+        Subclasses with extra parameters (e.g. rotation seed) should override.
+        """
+        return (
+            f"1|d={self.dimension}|cv={self.version}|b={self.compressed_size_bytes}"
+        )

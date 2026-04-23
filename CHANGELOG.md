@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BaseCodec.blobspec_fingerprint()` and `SQ8Codec` override: stable string
+  stored under `DefaultBlobspecKey` (`tc_blobspec_v1`) next to the base64 blob
+  so ADC can detect mixed codec / seed / dimension. Optional
+  `QuantizedCollection(..., blobspec_key=None)` disables the field.
+- `pip-audit` in the lint CI job and as a dev dependency; `.pre-commit-config.yaml`
+  (ruff + ruff-format + mypy on `src`).
+- `CONTRIBUTING.md` with setup and check list.
 - `turbochroma.blob_utils`: bounded base64 decoding for metadata blobs
   (`max_base64_chars_for_n_bytes`, `decode_stored_blob`) to limit work from
   hostile or corrupted metadata.

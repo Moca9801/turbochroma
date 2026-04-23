@@ -28,3 +28,5 @@ Blobs for ADC re-ranking are read from Chroma `metadatas` and are treated as
 and exact decoded length before decompression. For strict validation
 (invalid blob → error instead of falling back to Chroma’s distance), use
 `QuantizedCollection(..., strict=True)` or `query(..., strict=True)`.
+
+The optional **blob specification** string (see `DefaultBlobspecKey` in the public API) ties each stored base64 payload to a codec/parameter fingerprint. If present, it must match the current codec configuration or, in `strict` mode, re-ranking fails.

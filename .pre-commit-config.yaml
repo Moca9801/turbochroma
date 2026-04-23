@@ -1,0 +1,23 @@
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+default_language_version:
+  python: python3.10
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+        args: [src]

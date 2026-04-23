@@ -29,6 +29,7 @@ from turbochroma.codecs.base import BaseCodec
 _Emb: TypeAlias = list[Embedding] | list[PyEmbedding] | list[list[float]] | np.ndarray
 
 DefaultBlobKey = "tc_sq8_v1"
+DefaultBlobspecKey = "tc_blobspec_v1"
 
 _DEFAULT_INCLUDE: Include = ["metadatas", "documents", "distances"]
 
@@ -76,6 +77,9 @@ class QuantizedCollection:
             during ADC re-ranking raise :exc:`ValueError` instead of
             falling back to Chroma's distance. Default False (tolerant;
             use for debugging or high-trust data only).
+        blobspec_key: If not ``None``, store :meth:`BaseCodec.blobspec_fingerprint`
+            under this metadata key and verify it on ADC. Use ``None`` to
+            disable (legacy). Default :data:`DefaultBlobspecKey`.
     """
 
     def __init__(
@@ -86,15 +90,21 @@ class QuantizedCollection:
         blob_key: str = DefaultBlobKey,
         refine_factor: int = 4,
         strict: bool = False,
+        blobspec_key: str | None = DefaultBlobspecKey,
     ) -> None:
         if not blob_key or not str(blob_key).strip():
             msg = "blob_key must be a non-empty string"
+            raise ValueError(msg)
+        if blobspec_key is not None and (not str(blobspec_key).strip()):
+            msg = "blobspec_key must be None or a non-empty string"
             raise ValueError(msg)
         self._coll = collection
         self._codec = codec
         self._blob_key = str(blob_key)
         self._refine_factor = max(1, int(refine_factor))
         self._strict = bool(strict)
+        self._blobspec_key = str(blobspec_key).strip() if blobspec_key is not None else None
+        self._expected_blobspec = self._codec.blobspec_fingerprint()
 
     @property
     def collection(self) -> Collection:
@@ -117,6 +127,11 @@ class QuantizedCollection:
         """If True, invalid metadata blobs during ADC fail fast."""
         return self._strict
 
+    @property
+    def blobspec_key(self) -> str | None:
+        """Metadata key for :meth:`~turbochroma.codecs.base.BaseCodec.blobspec_fingerprint`, or None."""
+        return self._blobspec_key
+
     def _validate_embedding_matrix(self, emb: np.ndarray) -> None:
         if emb.shape[1] != self._codec.dimension:
             msg = (
@@ -137,9 +152,13 @@ class QuantizedCollection:
             raise ValueError(msg)
         blobs = self._codec.compress_batch(emb)
         mlist: list[dict[str, Any] | None] = list(metadatas) if metadatas is not None else [None] * len(ids)
-        return [
-            {**(mlist[i] or {}), self._blob_key: _b64(blobs[i])} for i, _ in enumerate(ids)
-        ]
+        out: list[dict[str, Any]] = []
+        for i, _ in enumerate(ids):
+            row: dict[str, Any] = {**(mlist[i] or {}), self._blob_key: _b64(blobs[i])}
+            if self._blobspec_key is not None:
+                row[self._blobspec_key] = self._expected_blobspec
+            out.append(row)
+        return out
 
     def add(
         self,
@@ -248,12 +267,20 @@ class QuantizedCollection:
             b64 = mrow.get(self._blob_key) if mrow else None
             if b64 and isinstance(b64, str):
                 try:
+                    if self._blobspec_key is not None and mrow:
+                        stored = mrow.get(self._blobspec_key)
+                        if stored is not None and str(stored) != self._expected_blobspec:
+                            msg = (
+                                f"blobspec mismatch for id {row_ids[j]!r}: "
+                                f"metadata has {stored!r}, expected {self._expected_blobspec!r}"
+                            )
+                            raise ValueError(msg)
                     rawb = decode_stored_blob(b64, self._codec.compressed_size_bytes)
                     s = self._codec.asymmetric_dot(query_vec, rawb)
                 except (ValueError, OSError, TypeError) as e:
                     if strict:
                         eid = row_ids[j]
-                        msg = f"Invalid {self._blob_key!r} for id {eid!r}: {e}"
+                        msg = f"ADC metadata error for id {eid!r}: {e}"
                         raise ValueError(msg) from e
                     if dists is not None and j < len(dists) and dists[j] is not None:
                         s = -float(dists[j])
@@ -413,7 +440,12 @@ class QuantizedCollection:
                 raise RuntimeError(msg)
             self._validate_embedding_matrix(arr)
             blobs = self._codec.compress_batch(arr)
-            new_meta = [{**(mlist[i] or {}), self._blob_key: _b64(blobs[i])} for i in range(len(got_ids))]
+            new_meta = []
+            for i in range(len(got_ids)):
+                row: dict[str, Any] = {**(mlist[i] or {}), self._blob_key: _b64(blobs[i])}
+                if self._blobspec_key is not None:
+                    row[self._blobspec_key] = self._expected_blobspec
+                new_meta.append(row)
             self._coll.update(ids=got_ids, metadatas=cast(Any, new_meta))
             n_done += len(got_ids)
             if len(got_ids) < batch_size:

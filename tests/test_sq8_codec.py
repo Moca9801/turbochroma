@@ -52,7 +52,9 @@ def test_compress_batch_returns_correct_blob_size(
     assert all(isinstance(b, bytes) for b in blobs)
 
 
-def test_roundtrip_preserves_structure(codec: SQ8Codec, normalized_vectors: np.ndarray) -> None:
+def test_roundtrip_preserves_structure(
+    codec: SQ8Codec, normalized_vectors: np.ndarray
+) -> None:
     blobs = codec.compress_batch(normalized_vectors)
     recovered = codec.decompress_batch(blobs)
     assert recovered.shape == normalized_vectors.shape
@@ -89,3 +91,14 @@ def test_determinism_across_instances() -> None:
 
 def test_inherits_basecodec() -> None:
     assert issubclass(SQ8Codec, BaseCodec)
+
+
+def test_blobspec_fingerprint_includes_codec_rotation_seed() -> None:
+    a = SQ8Codec(dimension=128, seed=1)
+    b = SQ8Codec(dimension=128, seed=2)
+    assert a.blobspec_fingerprint() == a.blobspec_fingerprint()
+    assert a.blobspec_fingerprint() != b.blobspec_fingerprint()
+    assert "sq8-v1" in a.blobspec_fingerprint()
+    assert "sparse-v1" in a.blobspec_fingerprint()
+    assert "s=1" in a.blobspec_fingerprint()
+    assert "s=2" in b.blobspec_fingerprint()
