@@ -44,7 +44,7 @@ today are:
 - **Re-rank cannot rescue misses**: If the correct chunk is not in Chroma’s top `(n_results × refine_factor)` hits, ADC cannot invent it. Tune `n_results` and `refine_factor` to your recall needs.
 - **ADC refinement with `refine_factor > 1` applies only to `query_embeddings=...`**. If you only pass `query_texts` (and let Chroma embed), the wrapper **falls back to native Chroma order** and may emit a `UserWarning`.
 - Chroma’s `query(..., include=...)` does **not** allow `"ids"`; IDs are always returned. The wrapper strips `"ids"` from `include` before calling Chroma.
-- Blobs are stored as **base64 in metadata** (Chroma’s accepted types). You pay some storage overhead on top of raw int8; later releases may add sidecar storage for tighter layouts.
+- Blobs are stored as **base64 in metadata** (Chroma’s accepted types). You pay some storage overhead on top of raw int8; later releases may add sidecar storage for tighter layouts. Values are size-checked before decoding. For **integrity-sensitive** re-ranking, use `strict=True` on `QuantizedCollection` or on `query(...)` so a tampered or corrupted blob fails with `ValueError` instead of falling back to Chroma’s distance.
 
 Context and trade-offs: [`docs/design/001-why-turbochroma.md`](docs/design/001-why-turbochroma.md).
 

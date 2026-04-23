@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `turbochroma.blob_utils`: bounded base64 decoding for metadata blobs
+  (`max_base64_chars_for_n_bytes`, `decode_stored_blob`) to limit work from
+  hostile or corrupted metadata.
+- `QuantizedCollection(..., strict=True)` and per-call
+  `query(..., strict=True)`: on ADC re-ranking, invalid stored blobs raise
+  `ValueError` instead of falling back to Chroma’s distance (default
+  `strict=False` remains tolerant for backward compatibility).
+- `py.typed` marker for PEP 561 type checking.
+- `tests/test_blob_utils.py` and collection tests for strict vs tolerant decode.
+- `SECURITY.md` and Dependabot config for `pip` and GitHub Actions.
+- CI: `mypy src` in the lint job.
 - Initial repository scaffold: project layout, tooling config, CI workflows,
   placeholders for codecs / rotations / storage / kernels modules.
 - `BaseCodec` abstract base class in `turbochroma.codecs.base`.
@@ -35,10 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does not accept `ids` in `include`; ids are always returned).
 - Test suite `tests/test_collection.py`: metadata blob injection,
   `fit_existing`, `refine_factor=1` parity with raw Chroma, multi-candidate
-  `refine_factor=4`, delegation, dimension validation.
+  `refine_factor=4`, delegation, dimension validation, strict vs tolerant
+  ADC on tampered blobs.
 
 ### Changed
 
+- ADC re-ranking now decodes metadata blobs via `decode_stored_blob` (length
+  cap, character set, `validate=True`, exact size check).
 - `TurboQuantizer` → `SQ8Codec` (class renamed). The old name is not
   aliased because the package has no external users yet.
 - `SQ8Codec` now takes an optional `rotation: BaseRotation` dependency;

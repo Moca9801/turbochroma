@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import base64
 import warnings
-from typing import Any, TypeAlias, cast
+from typing import Any, cast
 
 import numpy as np
 from chromadb import Collection
 from chromadb.api.types import (
     ID,
-    URI,
     Document,
     Embedding,
     Image,
@@ -18,10 +17,13 @@ from chromadb.api.types import (
     Metadatas,
     PyEmbedding,
     QueryResult,
+    URI,
     Where,
     WhereDocument,
 )
+from typing_extensions import TypeAlias
 
+from turbochroma.blob_utils import decode_stored_blob
 from turbochroma.codecs.base import BaseCodec
 
 _Emb: TypeAlias = list[Embedding] | list[PyEmbedding] | list[list[float]] | np.ndarray
@@ -33,10 +35,6 @@ _DEFAULT_INCLUDE: Include = ["metadatas", "documents", "distances"]
 
 def _b64(b: bytes) -> str:
     return base64.b64encode(b).decode("ascii")
-
-
-def _b64d(s: str) -> bytes:
-    return base64.b64decode(s)
 
 
 def _as_2d_float32(vectors: _Emb) -> np.ndarray:
@@ -67,6 +65,17 @@ class QuantizedCollection:
     ``count``, ``delete``, …) are delegated via :func:`getattr` — call them
     on this wrapper the same way you would on the inner collection, except
     for :meth:`add`, :meth:`upsert`, and :meth:`query` which are overridden.
+
+    Args:
+        collection: Chroma collection instance.
+        codec: Codec used to produce blobs (e.g. :class:`SQ8Codec`).
+        blob_key: Metadata field name for the base64 blob.
+        refine_factor: When ``> 1`` and using ``query_embeddings``, Chroma
+            over-fetches for ADC re-ranking.
+        strict: If True, invalid stored blobs (wrong length, bad base64)
+            during ADC re-ranking raise :exc:`ValueError` instead of
+            falling back to Chroma's distance. Default False (tolerant;
+            use for debugging or high-trust data only).
     """
 
     def __init__(
@@ -76,6 +85,7 @@ class QuantizedCollection:
         *,
         blob_key: str = DefaultBlobKey,
         refine_factor: int = 4,
+        strict: bool = False,
     ) -> None:
         if not blob_key or not str(blob_key).strip():
             msg = "blob_key must be a non-empty string"
@@ -84,6 +94,7 @@ class QuantizedCollection:
         self._codec = codec
         self._blob_key = str(blob_key)
         self._refine_factor = max(1, int(refine_factor))
+        self._strict = bool(strict)
 
     @property
     def collection(self) -> Collection:
@@ -100,6 +111,11 @@ class QuantizedCollection:
     @property
     def refine_factor(self) -> int:
         return self._refine_factor
+
+    @property
+    def strict(self) -> bool:
+        """If True, invalid metadata blobs during ADC fail fast."""
+        return self._strict
 
     def _validate_embedding_matrix(self, emb: np.ndarray) -> None:
         if emb.shape[1] != self._codec.dimension:
@@ -120,10 +136,10 @@ class QuantizedCollection:
             msg = f"len(ids)={len(ids)} but embedding matrix has {emb.shape[0]} rows"
             raise ValueError(msg)
         blobs = self._codec.compress_batch(emb)
-        mlist: list[dict[str, Any] | None] = (
-            list(metadatas) if metadatas is not None else [None] * len(ids)
-        )
-        return [{**(mlist[i] or {}), self._blob_key: _b64(blobs[i])} for i, _ in enumerate(ids)]
+        mlist: list[dict[str, Any] | None] = list(metadatas) if metadatas is not None else [None] * len(ids)
+        return [
+            {**(mlist[i] or {}), self._blob_key: _b64(blobs[i])} for i, _ in enumerate(ids)
+        ]
 
     def add(
         self,
@@ -199,6 +215,8 @@ class QuantizedCollection:
         qi: int,
         raw: QueryResult,
         n_out: int,
+        *,
+        strict: bool,
     ) -> dict[str, list[Any] | None]:
         """Re-order a single row of a ``QueryResult`` to contain ``n_out`` hits."""
         row_ids: list[str] = list(raw.get("ids", [[]])[qi] or [])
@@ -215,9 +233,7 @@ class QuantizedCollection:
             (raw.get("metadatas") or [None] * len(raw["ids"]))[qi] if raw.get("metadatas") else None
         )
         embs: list[Any] | None = (  # type: ignore[assignment]
-            (raw.get("embeddings") or [None] * len(raw["ids"]))[qi]
-            if raw.get("embeddings")
-            else None
+            (raw.get("embeddings") or [None] * len(raw["ids"]))[qi] if raw.get("embeddings") else None
         )
         docs: list[Any] | None = (  # type: ignore[assignment]
             (raw.get("documents") or [None] * len(raw["ids"]))[qi] if raw.get("documents") else None
@@ -232,10 +248,17 @@ class QuantizedCollection:
             b64 = mrow.get(self._blob_key) if mrow else None
             if b64 and isinstance(b64, str):
                 try:
-                    rawb = _b64d(b64)
+                    rawb = decode_stored_blob(b64, self._codec.compressed_size_bytes)
                     s = self._codec.asymmetric_dot(query_vec, rawb)
-                except (ValueError, OSError, TypeError):
-                    s = -1e30
+                except (ValueError, OSError, TypeError) as e:
+                    if strict:
+                        eid = row_ids[j]
+                        msg = f"Invalid {self._blob_key!r} for id {eid!r}: {e}"
+                        raise ValueError(msg) from e
+                    if dists is not None and j < len(dists) and dists[j] is not None:
+                        s = -float(dists[j])
+                    else:
+                        s = -j * 1e-9
             elif dists is not None and j < len(dists) and dists[j] is not None:
                 s = -float(dists[j])
             else:
@@ -265,7 +288,7 @@ class QuantizedCollection:
             out["uris"] = re_u
         return out  # type: ignore[return-value]
 
-    def query(
+    def query(  # noqa: PLR0913
         self,
         query_embeddings: list[Embedding] | list[PyEmbedding] | _Emb | None = None,
         query_texts: str | list[Document] | None = None,
@@ -278,7 +301,9 @@ class QuantizedCollection:
         include: Include | None = None,
         *,
         refine_factor: int | None = None,
+        strict: bool | None = None,
     ) -> QueryResult:
+        use_strict = self._strict if strict is None else bool(strict)
         rf = self._refine_factor if refine_factor is None else int(refine_factor)
         rf = max(1, rf)
 
@@ -345,7 +370,9 @@ class QuantizedCollection:
             raise RuntimeError(msg)
 
         rows: list[dict[str, list[Any] | None]] = [
-            self._refine_one_query(qe[qi], qi, raw, n_results)  # type: ignore[arg-type]
+            self._refine_one_query(
+                qe[qi], qi, raw, n_results, strict=use_strict
+            )  # type: ignore[arg-type]
             for qi in range(nq)
         ]
 
@@ -356,7 +383,7 @@ class QuantizedCollection:
             if key not in want or not rows:
                 continue
             if key in rows[0]:
-                out[key] = [cast(Any, r[key]) for r in rows]  # type: ignore[assignment]
+                out[key] = [cast(Any, r[key]) for r in rows]  # type: ignore[assignment]  # noqa: E501
         return cast(QueryResult, out)
 
     def fit_existing(self, batch_size: int = 256) -> int:
@@ -386,9 +413,7 @@ class QuantizedCollection:
                 raise RuntimeError(msg)
             self._validate_embedding_matrix(arr)
             blobs = self._codec.compress_batch(arr)
-            new_meta = [
-                {**(mlist[i] or {}), self._blob_key: _b64(blobs[i])} for i in range(len(got_ids))
-            ]
+            new_meta = [{**(mlist[i] or {}), self._blob_key: _b64(blobs[i])} for i in range(len(got_ids))]
             self._coll.update(ids=got_ids, metadatas=cast(Any, new_meta))
             n_done += len(got_ids)
             if len(got_ids) < batch_size:

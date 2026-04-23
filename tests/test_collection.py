@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import base64
 import uuid
-
-import chromadb
 import numpy as np
 import pytest
+import chromadb
 from chromadb import Collection
 from chromadb.config import Settings
 
@@ -47,9 +46,7 @@ def qcoll(coll: Collection, codec: SQ8Codec) -> QuantizedCollection:
     return QuantizedCollection(coll, codec, refine_factor=4)
 
 
-def test_add_injects_metadata_blob(
-    qcoll: QuantizedCollection, coll: Collection, codec: SQ8Codec
-) -> None:
+def test_add_injects_metadata_blob(qcoll: QuantizedCollection, coll: Collection, codec: SQ8Codec) -> None:
     emb = _l2n_rows(
         np.array(
             [
@@ -106,7 +103,9 @@ def test_query_refine_passthrough_when_rf_is_one() -> None:
     emb2 = _l2n_rows(np.eye(_DIM, dtype=np.float32))
     qc2.add(ids=[f"r{i}" for i in range(4)], embeddings=emb2.tolist())
     qv = _l2n_rows(emb2[0:1])
-    a = col.query(query_embeddings=qv.tolist(), n_results=2, include=["distances", "metadatas"])
+    a = col.query(
+        query_embeddings=qv.tolist(), n_results=2, include=["distances", "metadatas"]
+    )
     b = qc2.query(
         query_embeddings=qv.tolist(),
         n_results=2,
@@ -151,3 +150,38 @@ def test_mismatched_dim_raises() -> None:
     bad = np.array([[0.0, 0.0, 0.0]], dtype=np.float32)
     with pytest.raises(ValueError, match="does not match"):
         qc2.add(ids=["a"], embeddings=bad.tolist())
+
+
+def test_query_refine_strict_raises_on_tampered_blob() -> None:
+    c = _client()
+    col = c.create_collection(_name(), metadata={"hnsw:space": "l2"})
+    codec = SQ8Codec(dimension=_DIM, seed=42)
+    qc = QuantizedCollection(col, codec, refine_factor=4, strict=True)
+    emb = _l2n_rows(np.eye(_DIM, dtype=np.float32))
+    qc.add(ids=[f"r{i}" for i in range(4)], embeddings=emb.tolist())
+    # Valid base64 that decodes to 3 bytes; codec expects 4.
+    col.update(ids=["r0"], metadatas=[{DefaultBlobKey: "AAAA"}])
+    qv = _l2n_rows(emb[0:1])
+    with pytest.raises(ValueError, match="Invalid"):
+        qc.query(
+            query_embeddings=qv.tolist(),
+            n_results=2,
+            include=["distances", "metadatas"],
+        )
+
+
+def test_query_refine_tolerant_when_blob_tampered() -> None:
+    c = _client()
+    col = c.create_collection(_name(), metadata={"hnsw:space": "l2"})
+    codec = SQ8Codec(dimension=_DIM, seed=42)
+    qc = QuantizedCollection(col, codec, refine_factor=4, strict=False)
+    emb = _l2n_rows(np.eye(_DIM, dtype=np.float32))
+    qc.add(ids=[f"r{i}" for i in range(4)], embeddings=emb.tolist())
+    col.update(ids=["r0"], metadatas=[{DefaultBlobKey: "AAAA"}])
+    qv = _l2n_rows(emb[0:1])
+    r = qc.query(
+        query_embeddings=qv.tolist(),
+        n_results=2,
+        include=["distances", "metadatas"],
+    )
+    assert r["ids"] and len(r["ids"][0]) == 2
