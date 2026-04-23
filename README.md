@@ -9,7 +9,9 @@ benefits of dedicated ANN systems like FAISS or Qdrant without leaving
 Chroma.
 
 > **Status**: pre-alpha (`0.1.0.dev0`). API may change before `0.1.0`. Pin
-> versions for production only after a stable release.
+> versions for production only after a stable release. See
+> [STABILITY.md](STABILITY.md) (semver, deprecations) and
+> [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ---
 
@@ -44,6 +46,7 @@ today are:
 - **Re-rank cannot rescue misses**: If the correct chunk is not in Chroma’s top `(n_results × refine_factor)` hits, ADC cannot invent it. Tune `n_results` and `refine_factor` to your recall needs.
 - **ADC refinement with `refine_factor > 1` applies only to `query_embeddings=...`**. If you only pass `query_texts` (and let Chroma embed), the wrapper **falls back to native Chroma order** and may emit a `UserWarning`.
 - Chroma’s `query(..., include=...)` does **not** allow `"ids"`; IDs are always returned. The wrapper strips `"ids"` from `include` before calling Chroma.
+- The default SQ8 path stores one **byte per dimension** in the blob, with a **hard cap** of `MAX_COMPRESSED_BLOB_BYTES` (1 MiB) on both codec dimension and decoded payload size. If you need larger vectors, open an issue (you would need a different storage layout or a raised limit).
 - Blobs are stored as **base64 in metadata** (Chroma’s accepted types). You pay some storage overhead on top of raw int8; later releases may add sidecar storage for tighter layouts. Values are size-checked before decoding. A second field (`DefaultBlobspecKey` / `tc_blobspec_v1` by default) stores a **codec fingerprint** (`BaseCodec.blobspec_fingerprint`) so ADC can detect a blob written with a different codec, dimension, rotation, or seed. If the field is **missing** (older rows), only the base64 is validated. Set `blobspec_key=None` on `QuantizedCollection` to disable writing and checking that field. For **integrity-sensitive** re-ranking, use `strict=True` on `QuantizedCollection` or on `query(...)` so a bad blob or mismatched fingerprint fails with `ValueError` instead of falling back to Chroma’s distance.
 
 Context and trade-offs: [`docs/design/001-why-turbochroma.md`](docs/design/001-why-turbochroma.md).

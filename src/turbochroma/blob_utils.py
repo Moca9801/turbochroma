@@ -14,6 +14,12 @@ import re
 # Only standard base64 alphabet + padding. Rejects newlines, URLs, etc.
 _B64_RE = re.compile(r"^[A-Za-z0-9+/]+=*$")
 
+# Hard cap (bytes) for one stored compressed vector / metadata blob.
+# Fails fast on absurd ``compressed_size_bytes`` (DoS) before length math
+# and decoding. 1 MiB ≈ 1M int8 components — far above common embedders
+# (e.g. 256–16384) while still bounded in hostile metadata.
+MAX_COMPRESSED_BLOB_BYTES = 1_048_576
+
 
 def max_base64_chars_for_n_bytes(n: int) -> int:
     """Upper bound on length of a standard base64 *string* for *n* raw bytes (with padding)."""
@@ -47,6 +53,12 @@ def decode_stored_blob(b64: str, compressed_size_bytes: int) -> bytes:
     """
     if compressed_size_bytes < 0:
         msg = "compressed_size_bytes must be non-negative"
+        raise ValueError(msg)
+    if compressed_size_bytes > MAX_COMPRESSED_BLOB_BYTES:
+        msg = (
+            f"compressed_size_bytes {compressed_size_bytes} exceeds maximum "
+            f"{MAX_COMPRESSED_BLOB_BYTES} (reconfigure codec or check metadata)"
+        )
         raise ValueError(msg)
     max_chars = max_base64_chars_for_n_bytes(compressed_size_bytes)
     n = len(b64)

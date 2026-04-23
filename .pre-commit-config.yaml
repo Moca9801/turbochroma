@@ -11,6 +11,13 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        additional_dependencies: ["bandit[toml]>=1.7"]
+        args: ["-c", "pyproject.toml", "-q", "-r", "src/turbochroma"]
+
   - repo: local
     hooks:
       - id: mypy

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MAX_COMPRESSED_BLOB_BYTES` (1 MiB) and enforcement in `decode_stored_blob`
+  and `SQ8Codec` dimension bounds to mitigate DoS via pathological metadata.
+- **Bandit** (SAST) in CI and pre-commit; `[tool.bandit]` in `pyproject.toml`.
+- **Hypothesis** property test: `decode_stored_blob` never crashes the
+  interpreter on random inputs (only `ValueError` or success).
+- **Coverage** gate: `fail_under = 80` and `pytest --cov-fail-under=80` in CI.
+- **macOS** smoke run in CI (Python 3.11) alongside Ubuntu matrix.
+- **GitHub `dependency-review`** workflow on pull requests (moderate+ severity).
+- `STABILITY.md` (semver / pre-1.0 policy), `CODE_OF_CONDUCT.md`, and a
+  default **bug report** issue template.
 - `BaseCodec.blobspec_fingerprint()` and `SQ8Codec` override: stable string
   stored under `DefaultBlobspecKey` (`tc_blobspec_v1`) next to the base64 blob
   so ADC can detect mixed codec / seed / dimension. Optional

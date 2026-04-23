@@ -24,8 +24,10 @@ timeline when appropriate.
 ## Metadata and untrusted inputs
 
 Blobs for ADC re-ranking are read from Chroma `metadatas` and are treated as
-**untrusted** for size and shape. The library enforces string length limits
-and exact decoded length before decompression. For strict validation
+**untrusted** for size and shape. The library enforces a maximum **declared**
+compressed payload size (`MAX_COMPRESSED_BLOB_BYTES`, 1 MiB in current
+releases), string length limits before decoding, and exact decoded length
+after decoding. For strict validation
 (invalid blob → error instead of falling back to Chroma’s distance), use
 `QuantizedCollection(..., strict=True)` or `query(..., strict=True)`.
 

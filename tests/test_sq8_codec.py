@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from turbochroma import BaseCodec, SparseRotation, SQ8Codec
+from turbochroma import MAX_COMPRESSED_BLOB_BYTES, BaseCodec, SparseRotation, SQ8Codec
 
 
 @pytest.fixture
@@ -41,6 +41,13 @@ def test_rejects_rotation_with_mismatched_dimension() -> None:
     rot = SparseRotation(dimension=64, seed=7)
     with pytest.raises(ValueError, match="does not match"):
         SQ8Codec(dimension=128, rotation=rot)
+
+
+def test_rejects_out_of_range_dimension() -> None:
+    with pytest.raises(ValueError, match="dimension must be in"):
+        SQ8Codec(dimension=0)
+    with pytest.raises(ValueError, match="dimension must be in"):
+        SQ8Codec(dimension=MAX_COMPRESSED_BLOB_BYTES + 1)
 
 
 def test_compress_batch_returns_correct_blob_size(

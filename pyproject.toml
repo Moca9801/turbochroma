@@ -55,6 +55,8 @@ dev = [
     "mypy>=1.11",
     "pre-commit>=3.7",
     "pip-audit>=2.6",
+    "bandit[toml]>=1.7",
+    "hypothesis>=6.100",
 ]
 
 [project.urls]
@@ -62,6 +64,7 @@ Homepage = "https://github.com/Moca9801/turbochroma"
 Repository = "https://github.com/Moca9801/turbochroma"
 Issues = "https://github.com/Moca9801/turbochroma/issues"
 Changelog = "https://github.com/Moca9801/turbochroma/blob/main/CHANGELOG.md"
+Stability = "https://github.com/Moca9801/turbochroma/blob/main/STABILITY.md"
 
 [tool.hatch.version]
 path = "src/turbochroma/_version.py"
@@ -81,6 +84,8 @@ include = [
     "pyproject.toml",
     "SECURITY.md",
     "CONTRIBUTING.md",
+    "STABILITY.md",
+    "CODE_OF_CONDUCT.md",
     ".pre-commit-config.yaml",
 ]
 
@@ -137,12 +142,20 @@ show_error_codes = true
 module = ["chromadb.*", "numba.*", "pyarrow.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["hypothesis", "hypothesis.*"]
+ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "benchmarks", ".venv"]
+
 # ─── Coverage ────────────────────────────────────────────────────────────
 [tool.coverage.run]
 source = ["src/turbochroma"]
 branch = true
 
 [tool.coverage.report]
+fail_under = 80
 show_missing = true
 skip_covered = false
 exclude_lines = [

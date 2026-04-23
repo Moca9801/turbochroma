@@ -6,7 +6,14 @@ import base64
 
 import pytest
 
-from turbochroma.blob_utils import decode_stored_blob, max_base64_chars_for_n_bytes
+import hypothesis.strategies as st
+from hypothesis import given, settings
+
+from turbochroma.blob_utils import (
+    MAX_COMPRESSED_BLOB_BYTES,
+    decode_stored_blob,
+    max_base64_chars_for_n_bytes,
+)
 
 
 def test_max_base64_monotonic() -> None:
@@ -61,3 +68,24 @@ def test_max_base64_grows_linearly_for_large_n() -> None:
     m = max_base64_chars_for_n_bytes(n)
     assert m == 4 * ((n + 2) // 3)
     assert 1_300_000 < m < 1_500_000
+
+
+def test_decode_rejects_oversize_declared_length() -> None:
+    with pytest.raises(ValueError, match="exceeds maximum"):
+        decode_stored_blob("YQ==", MAX_COMPRESSED_BLOB_BYTES + 1)
+
+
+@given(
+    b64_body=st.text(
+        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+        max_size=8_000,
+    ),
+    declared=st.integers(min_value=0, max_value=MAX_COMPRESSED_BLOB_BYTES + 2),
+)
+@settings(max_examples=120, deadline=None)
+def test_decode_stored_blob_property_never_crashes(b64_body: str, declared: int) -> None:
+    """Random strings and lengths only raise ValueError or succeed — no interpreter crash."""
+    try:
+        decode_stored_blob(b64_body, declared)
+    except ValueError:
+        pass

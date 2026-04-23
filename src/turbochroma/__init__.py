@@ -14,9 +14,11 @@ Chroma
     :class:`QuantizedCollection` - wrap a Chroma collection with blob metadata + ADC re-rank.
     :data:`DefaultBlobKey`         - default metadata key for the stored blob (``"tc_sq8_v1"``).
     :data:`DefaultBlobspecKey`     - default key for the codec fingerprint (``"tc_blobspec_v1"``).
+    :data:`MAX_COMPRESSED_BLOB_BYTES` - max raw blob size (metadata / codec bound).
 """
 
 from turbochroma._version import __version__
+from turbochroma.blob_utils import MAX_COMPRESSED_BLOB_BYTES
 from turbochroma.codecs import BaseCodec, SQ8Codec
 from turbochroma.collection import DefaultBlobKey, DefaultBlobspecKey, QuantizedCollection
 from turbochroma.rotations import BaseRotation, SparseRotation
@@ -26,6 +28,7 @@ __all__ = [
     "BaseRotation",
     "DefaultBlobKey",
     "DefaultBlobspecKey",
+    "MAX_COMPRESSED_BLOB_BYTES",
     "QuantizedCollection",
     "SQ8Codec",
     "SparseRotation",
