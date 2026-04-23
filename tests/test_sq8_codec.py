@@ -52,9 +52,7 @@ def test_compress_batch_returns_correct_blob_size(
     assert all(isinstance(b, bytes) for b in blobs)
 
 
-def test_roundtrip_preserves_structure(
-    codec: SQ8Codec, normalized_vectors: np.ndarray
-) -> None:
+def test_roundtrip_preserves_structure(codec: SQ8Codec, normalized_vectors: np.ndarray) -> None:
     blobs = codec.compress_batch(normalized_vectors)
     recovered = codec.decompress_batch(blobs)
     assert recovered.shape == normalized_vectors.shape

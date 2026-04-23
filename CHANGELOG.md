@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test suite `tests/test_sparse_rotation.py`: determinism,
   invertibility (1D and 2D), batch-vs-per-vector equivalence, ndim
   validation.
+- `QuantizedCollection` in `turbochroma.collection`: wraps a Chroma
+  `Collection`, injects base64 codec blobs into metadata on `add` /
+  `upsert`, optional ADC re-ranking on `query` when
+  `refine_factor>1` and `query_embeddings` is used, and `fit_existing`
+  to backfill blobs for rows that already have stored vectors.  Default
+  metadata key: `DefaultBlobKey` (`"tc_sq8_v1"`).  Other `Collection`
+  methods are delegated via `__getattr__` (e.g. `count`, `get`, `delete`).
+- `query` strips `"ids"` from `include` before calling Chroma (Chroma 1.5+
+  does not accept `ids` in `include`; ids are always returned).
+- Test suite `tests/test_collection.py`: metadata blob injection,
+  `fit_existing`, `refine_factor=1` parity with raw Chroma, multi-candidate
+  `refine_factor=4`, delegation, dimension validation.
 
 ### Changed
 

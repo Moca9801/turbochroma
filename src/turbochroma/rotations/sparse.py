@@ -55,9 +55,7 @@ class SparseRotation(BaseRotation):
             return (vectors * self.sign_flip)[self.permutation]
         if vectors.ndim == 2:
             return (vectors * self.sign_flip)[:, self.permutation]
-        raise ValueError(
-            f"SparseRotation.apply expects 1D or 2D arrays, got {vectors.ndim}D"
-        )
+        raise ValueError(f"SparseRotation.apply expects 1D or 2D arrays, got {vectors.ndim}D")
 
     def inverse(self, rotated: np.ndarray) -> np.ndarray:
         if rotated.ndim == 1:
@@ -68,6 +66,4 @@ class SparseRotation(BaseRotation):
             unpermuted = np.empty_like(rotated)
             unpermuted[:, self.permutation] = rotated
             return unpermuted * self.sign_flip
-        raise ValueError(
-            f"SparseRotation.inverse expects 1D or 2D arrays, got {rotated.ndim}D"
-        )
+        raise ValueError(f"SparseRotation.inverse expects 1D or 2D arrays, got {rotated.ndim}D")
