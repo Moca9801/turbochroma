@@ -6,8 +6,24 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      dev-tools:
+        patterns:
+          - "pytest*"
+          - "ruff*"
+          - "mypy*"
+          - "pre-commit*"
+          - "pip-audit*"
+          - "bandit*"
+          - "hypothesis*"
+          - "mkdocs*"
+          - "pytest-xdist*"
+          - "pymdown*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      actions:
+        patterns: ["*"]

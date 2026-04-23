@@ -9,12 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CodeQL** (`codeql.yml`), **OpenSSF Scorecard** (`scorecards.yml`, scheduled),
+  **SBOM** artifact via **anchore/sbom-action** (Syft, CycloneDX JSON on `main`), and
+  **MkDocs** site + **docs** CI job (`docs.yml`); new [`docs/quality-gates.md`](docs/quality-gates.md)
+  tables for the full gate list, plus root [`QUALITY.md`](QUALITY.md) and [`TESTING.md`](TESTING.md).
+- **Line coverage** requirement raised to **90%**; **pytest-xdist** (`-n auto` in CI).
+- Tests: `test_base_codec.py`, `test_collection_edges.py` (3D input, `RuntimeError` batch
+  mismatch mock, `repr`, `documents` in refine), `test_scaffold_imports.py` (subpackages).
+- **README** CI badges; **PULL_REQUEST_TEMPLATE**; pre-commit `check-yaml` / file hygiene;
+  **Dependabot** groups for `pip` dev tools and for GitHub Actions.
 - `MAX_COMPRESSED_BLOB_BYTES` (1 MiB) and enforcement in `decode_stored_blob`
   and `SQ8Codec` dimension bounds to mitigate DoS via pathological metadata.
 - **Bandit** (SAST) in CI and pre-commit; `[tool.bandit]` in `pyproject.toml`.
 - **Hypothesis** property test: `decode_stored_blob` never crashes the
   interpreter on random inputs (only `ValueError` or success).
-- **Coverage** gate: `fail_under = 80` and `pytest --cov-fail-under=80` in CI.
+- **Coverage** gate: `fail_under = 90` in config and `pytest --cov-fail-under=90` in CI.
 - **macOS** smoke run in CI (Python 3.11) alongside Ubuntu matrix.
 - **GitHub `dependency-review`** workflow on pull requests (moderate+ severity).
 - `STABILITY.md` (semver / pre-1.0 policy), `CODE_OF_CONDUCT.md`, and a

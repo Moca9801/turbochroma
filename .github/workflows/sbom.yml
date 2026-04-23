@@ -1,0 +1,23 @@
+# CycloneDX SBOM from the source tree (Syft) after each push to main.
+# Upload helps SBOM consumers and attestation programs (e.g. OpenSSF).
+name: sbom
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  syft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate & upload SBOM
+        uses: anchore/sbom-action@v0.20.0
+        with:
+          path: "."
+          format: cyclonedx-json
+          artifact-name: sbom.cyclonedx.json

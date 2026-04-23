@@ -1,5 +1,9 @@
 # turbochroma
 
+[![test](https://github.com/Moca9801/turbochroma/actions/workflows/test.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/test.yml)
+[![CodeQL](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml)
+[![docs](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml)
+
 > Drop-in compression for ChromaDB: **4× less RAM, <1% recall loss, zero ingest-code changes.**
 
 `turbochroma` wraps a ChromaDB collection, stores quantized int8 blobs next
@@ -69,7 +73,7 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
-Contributors: [CONTRIBUTING.md](CONTRIBUTING.md) (pre-commit, ruff, mypy, `pip-audit`).
+Contributors: [CONTRIBUTING.md](CONTRIBUTING.md) (pre-commit, ruff, mypy, `pip-audit`). Quality bar: [QUALITY.md](QUALITY.md), [docs/quality-gates.md](docs/quality-gates.md), [TESTING.md](TESTING.md). API & design site: build with `pip install -e ".[docs]" && mkdocs build` (sources under `docs/`).
 
 Optional extras:
 
