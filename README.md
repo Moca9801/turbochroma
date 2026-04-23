@@ -8,8 +8,8 @@ computation (ADC)** at query time. You get most of the memory and latency
 benefits of dedicated ANN systems like FAISS or Qdrant without leaving
 Chroma.
 
-> **Status**: pre-alpha (`0.1.0.dev0`). Private repo, API unstable. Do not
-> pin to this for production until `0.1.0` lands.
+> **Status**: pre-alpha (`0.1.0.dev0`). API may change before `0.1.0`. Pin
+> versions for production only after a stable release.
 
 ---
 
@@ -23,7 +23,30 @@ today are:
 |---|---|
 | Migrate to Qdrant / Milvus / Weaviate | Infra rewrite, new ops surface |
 | Reduce embedding dimension (e.g. PCA, smaller model) | Model retraining, recall loss across the board |
-| **`pip install turbochroma`** | ~10 lines of code, no infra change |
+| **`pip install turbochroma`** | Small code change, no vector DB swap |
+
+---
+
+## Use cases and real-world applications
+
+| Scenario | How turbochroma helps |
+|----------|------------------------|
+| **RAG at scale (many sources, many chunks)** | Each chunk carries a dense vector; large corpora swell RAM and I/O. SQ8 ≈ **4× smaller blobs** in metadata, while ADC can **re-rank** a cheap wide pool before an expensive cross-encoder or LLM. |
+| **Tight RAM or many per-tenant collections** | You keep Chroma; you do not migrate. Less memory per row means more headroom for **multi-tenant** or per-product collections on one host. |
+| **Cheap re-rank before a heavy reranker** | Common pattern: Chroma (fast, approximate) → **wider top‑K** (e.g. `n_results × refine_factor`) → **ADC re-ordering** in O(d) on CPU → top‑N to BGE / cross-encoder. Saves **GPU and latency** on the expensive model. |
+| **Backfill legacy indexes** | Data indexed **without** blobs: `fit_existing()` walks stored embeddings and writes the blob into metadata, **without re-embedding** from text. |
+| **Hybrid RAG (dense + sparse)** | Chroma can still back BM25/keyword; turbochroma only augments the **dense** path with smaller sidecar data and an optional re-rank pass. |
+
+**What it is *not* (primarily)**: a replacement for billion-scale FAISS-IVF-PQ clusters, or a substitute for retraining a better embedder. It is a **pragmatic layer** for teams already on Chroma.
+
+### Limitations (read before you ship)
+
+- **Re-rank cannot rescue misses**: If the correct chunk is not in Chroma’s top `(n_results × refine_factor)` hits, ADC cannot invent it. Tune `n_results` and `refine_factor` to your recall needs.
+- **ADC refinement with `refine_factor > 1` applies only to `query_embeddings=...`**. If you only pass `query_texts` (and let Chroma embed), the wrapper **falls back to native Chroma order** and may emit a `UserWarning`.
+- Chroma’s `query(..., include=...)` does **not** allow `"ids"`; IDs are always returned. The wrapper strips `"ids"` from `include` before calling Chroma.
+- Blobs are stored as **base64 in metadata** (Chroma’s accepted types). You pay some storage overhead on top of raw int8; later releases may add sidecar storage for tighter layouts.
+
+Context and trade-offs: [`docs/design/001-why-turbochroma.md`](docs/design/001-why-turbochroma.md).
 
 ---
 
@@ -33,34 +56,117 @@ today are:
 pip install turbochroma
 ```
 
+**Develop from a git clone (editable):**
+
+```bash
+cd turbochroma
+python -m venv .venv
+# Windows: .\.venv\Scripts\activate
+# Unix:     source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
 Optional extras:
 
 - `turbochroma[fast]` — numba kernels for faster ADC
-- `turbochroma[parquet]` — sidecar parquet storage backend
+- `turbochroma[parquet]` — sidecar parquet storage backend (planned wiring)
 - `turbochroma[bench]` — datasets + matplotlib for reproducing benchmarks
 
 ---
 
-## 30-second quickstart
+## End-to-end example
 
-*(API not implemented yet in this commit; see the roadmap below.)*
+Match **`SQ8Codec(dimension=...)`** to your embedder (e.g. 1024 for BGE-M3, 384 for
+many small models). Blobs are written under the default metadata key
+`DefaultBlobKey` (`"tc_sq8_v1"`).
+
+```python
+import numpy as np
+import chromadb
+from chromadb.config import Settings
+from turbochroma import QuantizedCollection, SQ8Codec, DefaultBlobKey
+
+# Same dimension as your embedding model
+DIM = 1024
+SEED = 42
+
+# 1) Chroma as usual
+client = chromadb.PersistentClient(path="./chroma_data")
+collection = client.get_or_create_collection(
+    "my_docs",
+    metadata={"hnsw:space": "cosine"},
+)
+
+# 2) Codec + wrapper
+codec = SQ8Codec(dimension=DIM, seed=SEED)
+qc = QuantizedCollection(
+    collection,
+    codec,
+    refine_factor=4,
+)
+
+def norm_rows(x: np.ndarray) -> np.ndarray:
+    x = x.astype(np.float32)
+    n = np.linalg.norm(x, axis=1, keepdims=True)
+    n = np.where(n == 0, 1.0, n)
+    return x / n
+
+# 3) Ingest: replace with outputs from your embedder
+embeddings = norm_rows(np.random.randn(50, DIM))
+qc.add(
+    ids=[f"chunk_{i}" for i in range(50)],
+    embeddings=embeddings.tolist(),
+    metadatas=[{"source": f"doc_{i // 10}"} for i in range(50)],
+)
+
+# 4) Optional: confirm the blob in metadata
+row = collection.get(ids=["chunk_0"], include=["metadatas"])
+assert DefaultBlobKey in (row["metadatas"][0] or {})
+
+# 5) Query with optional ADC re-rank (use your real query embedding)
+q = norm_rows(np.random.randn(1, DIM))[0].tolist()
+results = qc.query(
+    query_embeddings=[q],
+    n_results=8,
+    include=["metadatas", "distances", "documents"],
+    refine_factor=4,
+)
+print("Top ids:", results["ids"][0][:3])
+
+# 6) Vectors already in Chroma but added without turbochroma? Backfill:
+# n = qc.fit_existing()
+# print("metadata rows updated:", n)
+```
+
+**Experimenting / seeing the effect**
+
+- **`get(..., include=["metadatas"])`**: check for the key `tc_sq8_v1` and the base64
+  value (one logical int8 per dimension, base64 in JSON).
+- **Compare** `refine_factor=1` vs `4` on the *same* `query_embeddings` and
+  watch whether `ids[0]` order changes (larger effect when *more* than two
+  documents compete and Chroma’s first stage is imperfect for your metric).
+- **Codec-only sanity check** (no Chroma): from the repo root, run
+  `python benchmarks/synthetic_mae.py` for MAE, compression ratio, and timing.
+
+---
+
+## 30-second quickstart (minimal)
 
 ```python
 import chromadb
 from turbochroma import QuantizedCollection, SQ8Codec
 
+DIM = 1024
 client = chromadb.PersistentClient(path="./chroma")
 coll = client.get_or_create_collection("docs")
+qc = QuantizedCollection(coll, SQ8Codec(dimension=DIM, seed=42), refine_factor=4)
 
-qcoll = QuantizedCollection(coll, codec=SQ8Codec())
-qcoll.fit_existing()   # idempotent; compresses existing vectors
-
-results = qcoll.query(
-    query_embeddings=[query_vec],
-    n_results=10,
-    refine_factor=4,   # 2-stage: Chroma top-40 → ADC re-rank to top-10
-)
+# qc.add(... embeddings from your model ...)
+# q_vec = your_query_embedding  # list[float] length DIM
+# qc.query(query_embeddings=[q_vec], n_results=10, include=["metadatas", "distances"])
 ```
+
+If you only have existing float vectors: `QuantizedCollection(...).fit_existing()`.
 
 ---
 
@@ -76,14 +182,15 @@ results = qcoll.query(
    dot product is computed directly. You pay float32 precision only for
    the query, which is already cheap.
 
-More detail in [`docs/design/002-codec-interface.md`](docs/design/).
+More detail: [`docs/design/001-why-turbochroma.md`](docs/design/001-why-turbochroma.md).
 
 ---
 
 ## Benchmarks
 
-*Reproducible via `python benchmarks/beir_nfcorpus.py`. Results table will
-be filled in once benchmarks land (v0.1.0).*
+Synthetic MAE and compression: `python benchmarks/synthetic_mae.py` from a clone.
+
+BEIR-style tables: *planned* for v0.1.0; see the roadmap.
 
 | Metric | Chroma vanilla (float32) | turbochroma SQ8 | FAISS SQ8 (baseline) |
 |---|---|---|---|
