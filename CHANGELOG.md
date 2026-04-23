@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defaults to `SparseRotation(dimension, seed=seed)`. The previous
   `cache_dir` parameter was removed: the rotation is deterministic
   given `(dimension, seed)`, so the on-disk pickle cache was redundant.
+- `benchmarks/synthetic_mae.py` ported from Minervia's
+  `benchmark_turbo.py`: updated to the new API, English output, strict
+  `zip()`, type hints, no `sys.path` hack. Still a bare-bones script;
+  a proper CLI with JSON output and BEIR integration lands later.
 
 <!--
 ## [0.1.0] - YYYY-MM-DD

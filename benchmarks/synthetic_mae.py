@@ -1,60 +1,83 @@
-import numpy as np
-import sys
-import os
+"""Synthetic MAE benchmark for turbochroma codecs.
+
+Measures three things on a batch of L2-normalized synthetic vectors:
+
+1. Compression throughput (seconds per vector).
+2. ADC drift: |true_dot - asymmetric_dot| across all (query, doc) pairs.
+3. Storage ratio vs. raw float32.
+
+This script is ported from Minervia's ``benchmark_turbo.py``. The public
+API shift (``TurboQuantizer`` -> ``SQ8Codec``, method rename
+``compute_asymmetric_dot`` -> ``asymmetric_dot``) and the removal of the
+``cache_dir`` parameter are reflected here.
+
+Usage:
+    python benchmarks/synthetic_mae.py
+"""
+
+from __future__ import annotations
+
 import time
 
-# Asegurarse de que el path de utils esté disponible
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils.quantizer import TurboQuantizer
+import numpy as np
 
-def run_benchmark(num_vectors=500, dim=1024):
-    quantizer = TurboQuantizer(dim, cache_dir="/tmp/turbo_bench_cache")
-    
-    # Generar vectores de prueba normalizados (igual que e5-large en coseno)
+from turbochroma import SQ8Codec
+
+
+def run_benchmark(num_vectors: int = 500, dim: int = 1024) -> None:
+    codec = SQ8Codec(dimension=dim)
+
     rng = np.random.default_rng(seed=2024)
     data = rng.standard_normal((num_vectors, dim)).astype(np.float32)
     data = data / np.linalg.norm(data, axis=1, keepdims=True)
-    
+
     queries = rng.standard_normal((5, dim)).astype(np.float32)
     queries = queries / np.linalg.norm(queries, axis=1, keepdims=True)
-    
-    errors = []
-    print(f"\n--- Benchmark TurboQuant (Dim: {dim}, Vectores: {num_vectors}, Queries: {len(queries)}) ---\n")
-    
-    # Pre-comprimir todos los vectores
+
+    print(
+        f"\n--- Benchmark SQ8Codec "
+        f"(dim: {dim}, vectors: {num_vectors}, queries: {len(queries)}) ---\n"
+    )
+
     t0 = time.time()
-    compressed_data = [quantizer.compress(v) for v in data]
+    compressed_data = [codec.compress(v) for v in data]
     t_compress = time.time() - t0
-    print(f"⚙️  Compresión: {t_compress:.3f}s ({t_compress/num_vectors*1000:.2f}ms por vector)")
-    
-    # Calcular similitud asimétrica vs. dot product exacto
+    print(
+        f"Compression: {t_compress:.3f}s "
+        f"({t_compress / num_vectors * 1000:.2f} ms per vector)"
+    )
+
+    errors: list[float] = []
     t0 = time.time()
     for query in queries:
-        for v_idx, (v, comp) in enumerate(zip(data, compressed_data)):
+        for v, comp in zip(data, compressed_data, strict=True):
             original_dot = float(np.dot(query, v))
-            turbo_dot = quantizer.compute_asymmetric_dot(query, comp)
-            errors.append(abs(original_dot - turbo_dot))
+            adc_dot = codec.asymmetric_dot(query, comp)
+            errors.append(abs(original_dot - adc_dot))
     t_search = time.time() - t0
-    
+
     total_ops = len(queries) * num_vectors
-    print(f"🔍 Búsqueda asimétrica: {t_search:.3f}s ({total_ops} pares)")
-    print(f"\n📊 Resultados de Distorsión:")
-    print(f"   Error Medio Absoluto (MAE): {np.mean(errors):.6f}")
-    print(f"   Error Máximo:               {np.max(errors):.6f}")
-    print(f"   Desviación Estándar:        {np.std(errors):.6f}")
-    
-    # Validar compresión (bytes)
+    print(f"Asymmetric search: {t_search:.3f}s ({total_ops} pairs)")
+    print("\nDistortion results:")
+    print(f"  Mean absolute error (MAE): {np.mean(errors):.6f}")
+    print(f"  Max error:                 {np.max(errors):.6f}")
+    print(f"  Std dev:                   {np.std(errors):.6f}")
+
     sample_comp = compressed_data[0]
-    original_bytes = dim * 4  # float32
-    compressed_bytes = len(sample_comp) # Ahora es un objeto bytes
+    original_bytes = dim * 4
+    compressed_bytes = len(sample_comp)
     ratio = original_bytes / compressed_bytes
-    print(f"\n💾 Compresión: {original_bytes}B → {compressed_bytes}B (ratio: {ratio:.1f}x)")
-    
-    mae = np.mean(errors)
+    print(
+        f"\nCompression: {original_bytes} B -> {compressed_bytes} B "
+        f"(ratio: {ratio:.1f}x)"
+    )
+
+    mae = float(np.mean(errors))
     if mae < 0.02:
-        print(f"\n✅ ÉXITO: MAE={mae:.4f} < 2%. TurboQuant funcionando correctamente.")
+        print(f"\nOK: MAE={mae:.4f} < 2%. SQ8Codec performing within spec.")
     else:
-        print(f"\n⚠️  ALERTA: MAE={mae:.4f} > 2%. Ajustar parámetros QJL.")
+        print(f"\nWARN: MAE={mae:.4f} > 2%. Check rotation / calibration.")
+
 
 if __name__ == "__main__":
     run_benchmark()
