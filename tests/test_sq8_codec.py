@@ -1,0 +1,80 @@
+"""Tests for SQ8Codec: roundtrip, determinism, shape, asymmetric dot sanity."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from turbochroma import SQ8Codec
+
+
+@pytest.fixture
+def codec(tmp_path: Path) -> SQ8Codec:
+    return SQ8Codec(dimension=128, cache_dir=tmp_path / "codec_cache", seed=42)
+
+
+@pytest.fixture
+def normalized_vectors() -> np.ndarray:
+    rng = np.random.default_rng(seed=2024)
+    data = rng.standard_normal((50, 128)).astype(np.float32)
+    return data / np.linalg.norm(data, axis=1, keepdims=True)
+
+
+def test_version_and_shape(codec: SQ8Codec) -> None:
+    assert codec.version == "sq8-v1"
+    assert codec.dimension == 128
+    assert codec.compressed_size_bytes == 128
+
+
+def test_compress_batch_returns_correct_blob_size(
+    codec: SQ8Codec, normalized_vectors: np.ndarray
+) -> None:
+    blobs = codec.compress_batch(normalized_vectors)
+    assert len(blobs) == len(normalized_vectors)
+    assert all(len(b) == codec.compressed_size_bytes for b in blobs)
+    assert all(isinstance(b, bytes) for b in blobs)
+
+
+def test_roundtrip_preserves_structure(
+    codec: SQ8Codec, normalized_vectors: np.ndarray
+) -> None:
+    blobs = codec.compress_batch(normalized_vectors)
+    recovered = codec.decompress_batch(blobs)
+    assert recovered.shape == normalized_vectors.shape
+    mae = float(np.mean(np.abs(recovered - normalized_vectors)))
+    assert mae < 0.02, f"MAE too high after roundtrip: {mae}"
+
+
+def test_asymmetric_dot_approximates_true_dot(
+    codec: SQ8Codec, normalized_vectors: np.ndarray
+) -> None:
+    query = normalized_vectors[0]
+    for i in range(1, 10):
+        doc = normalized_vectors[i]
+        blob = codec.compress(doc)
+        true_dot = float(np.dot(query, doc))
+        adc_dot = codec.asymmetric_dot(query, blob)
+        assert abs(true_dot - adc_dot) < 0.05, (
+            f"ADC drift too large: true={true_dot}, adc={adc_dot}"
+        )
+
+
+def test_determinism_across_instances(tmp_path: Path) -> None:
+    rng = np.random.default_rng(seed=7)
+    vectors = rng.standard_normal((10, 64)).astype(np.float32)
+    vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+    codec_a = SQ8Codec(dimension=64, cache_dir=tmp_path / "a", seed=42)
+    codec_b = SQ8Codec(dimension=64, cache_dir=tmp_path / "b", seed=42)
+
+    blobs_a = codec_a.compress_batch(vectors)
+    blobs_b = codec_b.compress_batch(vectors)
+    assert blobs_a == blobs_b, "Same seed must produce identical blobs"
+
+
+def test_inherits_basecodec() -> None:
+    from turbochroma import BaseCodec
+
+    assert issubclass(SQ8Codec, BaseCodec)

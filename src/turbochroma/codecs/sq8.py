@@ -1,106 +1,104 @@
-import numpy as np
-import os
+"""8-bit scalar quantization codec with sparse rotation preprocessing.
+
+Produces 4:1 compression (e.g. 4096 B → 1024 B for 1024-d vectors) with
+typical mean-absolute error below 0.01 on L2-normalized inputs.
+
+The rotation (sparse sign-flip + permutation) is kept internal to this
+codec for now; it is extracted into its own :mod:`turbochroma.rotations`
+subpackage in a subsequent commit so users can plug in custom rotations
+(Hadamard, OPQ, etc.).
+"""
+
+from __future__ import annotations
+
 import pickle
-from typing import Tuple, List, Dict, Optional
+from pathlib import Path
 
-class TurboQuantizer:
-    """
-    TurboQuant Pro (8-bit SQ8) implementation.
-    Offers 4:1 compression (1024 bytes per 1024d vector) with forensic-grade precision.
-    Minimal cosine loss (< 0.01) while maintaining fast asymmetric search.
+import numpy as np
+
+from turbochroma.codecs.base import BaseCodec
+
+
+class SQ8Codec(BaseCodec):
+    """8-bit scalar quantization with sparse rotation.
+
+    Pipeline per vector:
+        1. sign-flip + permutation (O(d)) — spreads outliers across dims.
+        2. scale by 127, clip to ``[-128, 127]``, cast to ``int8``.
+
+    On query:
+        the query is rotated in the same space and dotted against the
+        decompressed int8 blob (asymmetric distance computation).
+
+    The rotation seed is deterministic so that blobs generated in
+    different processes with the same ``dimension`` and ``seed`` are
+    interchangeable. The rotation is persisted to ``cache_dir`` so the
+    next run of the same process can reload it without drift.
     """
 
-    def __init__(self, dimension: int = 1024, cache_dir: str = "cache"):
+    version = "sq8-v1"
+
+    def __init__(
+        self,
+        dimension: int = 1024,
+        cache_dir: str | Path = "cache",
+        seed: int = 42,
+    ) -> None:
         self.dimension = dimension
-        self.cache_dir = cache_dir
-        os.makedirs(cache_dir, exist_ok=True)
-        self.config_path = os.path.join(cache_dir, f"turbo_pro_config_{dimension}.pkl")
-        # Sparse Rotation assets
-        self.permutation, self.sign_flip = self._load_or_generate_config()
-
-    # Versión de la configuración de rotación e intensidad.
-    # v3-8bit-sq8: Migración a 8 bits para máxima estabilidad forense.
-    _CONFIG_VERSION = "v3-8bit-sq8"
-
-    def _load_or_generate_config(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Loads stable rotation config to ensure index consistency."""
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "rb") as f:
-                data = pickle.load(f)
-                version = data.get("version", "legacy")
-                # Verificación de compatibilidad con 8-bit
-                if "8bit" not in version and version != "legacy":
-                    print(f"⚠️  [Turbo] Incompatibilidad de bits ({version}). Regenerando para 8-bit...")
-                else:
-                    print(f"✅ [TurboQuant 8-bit] Config cargada: {version}")
-                    return data["perm"], data["signs"]
-
-        rng   = np.random.default_rng(42)
-        perm  = rng.permutation(self.dimension)
-        signs = rng.choice([-1.0, 1.0], size=self.dimension).astype(np.float32)
-
-        with open(self.config_path, "wb") as f:
-            pickle.dump(
-                {"perm": perm, "signs": signs, "version": self._CONFIG_VERSION},
-                f,
-            )
-        print(f"✅ [TurboQuant 8-bit] Nueva config generada: {self._CONFIG_VERSION}")
-        return perm, signs
+        self.compressed_size_bytes = dimension
+        self._seed = seed
+        self._cache_dir = Path(cache_dir)
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        self._config_path = self._cache_dir / f"turbo_pro_config_{dimension}.pkl"
+        self._permutation, self._sign_flip = self._load_or_generate_rotation()
 
     @property
     def config_version(self) -> str:
-        """Versión activa. Usar para invalidar índices de 2-bit en ChromaDB."""
-        return self._CONFIG_VERSION
+        """Alias of :attr:`version` kept for compatibility with Minervia callers."""
+        return self.version
+
+    def _load_or_generate_rotation(self) -> tuple[np.ndarray, np.ndarray]:
+        if self._config_path.exists():
+            with self._config_path.open("rb") as f:
+                data = pickle.load(f)
+            stored_version = data.get("version", "legacy")
+            if stored_version == self.version or "8bit" in stored_version or stored_version == "legacy":
+                return data["perm"], data["signs"]
+
+        rng = np.random.default_rng(self._seed)
+        perm = rng.permutation(self.dimension)
+        signs = rng.choice([-1.0, 1.0], size=self.dimension).astype(np.float32)
+        with self._config_path.open("wb") as f:
+            pickle.dump({"perm": perm, "signs": signs, "version": self.version}, f)
+        return perm, signs
 
     def _apply_rotation(self, v: np.ndarray) -> np.ndarray:
-        """Sign Flip + Permutation (O(d))."""
-        return (v * self.sign_flip)[self.permutation]
+        return (v * self._sign_flip)[self._permutation]
 
     def _inverse_rotation(self, v_rot: np.ndarray) -> np.ndarray:
-        """Inverse Sign Flip + Permutation (O(d))."""
         unpermuted = np.empty_like(v_rot)
-        unpermuted[self.permutation] = v_rot
-        return unpermuted * self.sign_flip
+        unpermuted[self._permutation] = v_rot
+        return unpermuted * self._sign_flip
 
-    def compress_batch(self, vectors: np.ndarray) -> List[bytes]:
-        """
-        Compresses N vectors to int8 blobs (1024 bytes each).
-        Uses Scalar Quantization (SQ8) after rotation.
-        """
-        N = vectors.shape[0]
-        v = vectors.astype(np.float32)
-        
-        # 1. Sparse Rotation (Batch)
-        v_rot = (v * self.sign_flip)[:, self.permutation]
-        
-        # 2. Scalar Quantization to int8
-        # BGE-M3 produce vectores normalizados L2. Rango típico [-0.1, 0.1].
-        # Escalamos x 127 para cubrir el rango completo de int8 [-128, 127]
-        # pero usamos un factor de seguridad de 100 para evitar saturación agresiva.
-        v_int8 = np.clip(v_rot * 127.0, -128, 127).astype(np.int8)
-        
-        # Convert the matrix (N, 1024) into a list of bytes
-        return [b.tobytes() for b in v_int8]
-
-    def compress(self, v: np.ndarray) -> bytes:
-        """Sequential single-vector compression."""
-        return self.compress_batch(v.reshape(1, -1))[0]
-
-    def decompress_to_rotated(self, blob: bytes) -> np.ndarray:
-        """Reconstructs the rotated vector from int8."""
+    def _decompress_to_rotated(self, blob: bytes) -> np.ndarray:
         data = np.frombuffer(blob, dtype=np.int8)
         return data.astype(np.float32) / 127.0
 
-    def compute_asymmetric_dot(self, query_vector: np.ndarray, compressed_blob: bytes) -> float:
-        """
-        High-performance dot product (Asymmetric).
-        Float32 Query vs Int8 Document.
-        """
-        q_rot = self._apply_rotation(query_vector)
-        v_recon_rot = self.decompress_to_rotated(compressed_blob)
-        return float(np.dot(q_rot, v_recon_rot))
+    def compress_batch(self, vectors: np.ndarray) -> list[bytes]:
+        v = vectors.astype(np.float32)
+        v_rot = (v * self._sign_flip)[:, self._permutation]
+        v_int8 = np.clip(v_rot * 127.0, -128, 127).astype(np.int8)
+        return [row.tobytes() for row in v_int8]
 
-    def decompress(self, blob: bytes) -> np.ndarray:
-        """Full reconstruction to original space (float32)."""
-        v_rot = self.decompress_to_rotated(blob)
-        return self._inverse_rotation(v_rot)
+    def decompress_batch(self, blobs: list[bytes]) -> np.ndarray:
+        rotated = np.stack(
+            [np.frombuffer(b, dtype=np.int8).astype(np.float32) / 127.0 for b in blobs]
+        )
+        unpermuted = np.empty_like(rotated)
+        unpermuted[:, self._permutation] = rotated
+        return unpermuted * self._sign_flip
+
+    def asymmetric_dot(self, query: np.ndarray, blob: bytes) -> float:
+        q_rot = self._apply_rotation(query)
+        v_recon_rot = self._decompress_to_rotated(blob)
+        return float(np.dot(q_rot, v_recon_rot))
