@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 
-from turbochroma import SQ8Codec
+from turbochroma import BaseCodec, SparseRotation, SQ8Codec
 
 
 @pytest.fixture
-def codec(tmp_path: Path) -> SQ8Codec:
-    return SQ8Codec(dimension=128, cache_dir=tmp_path / "codec_cache", seed=42)
+def codec() -> SQ8Codec:
+    return SQ8Codec(dimension=128, seed=42)
 
 
 @pytest.fixture
@@ -26,6 +24,23 @@ def test_version_and_shape(codec: SQ8Codec) -> None:
     assert codec.version == "sq8-v1"
     assert codec.dimension == 128
     assert codec.compressed_size_bytes == 128
+
+
+def test_default_rotation_is_sparse(codec: SQ8Codec) -> None:
+    assert isinstance(codec.rotation, SparseRotation)
+    assert codec.rotation.dimension == 128
+
+
+def test_custom_rotation_is_honored() -> None:
+    rot = SparseRotation(dimension=64, seed=7)
+    codec = SQ8Codec(dimension=64, rotation=rot)
+    assert codec.rotation is rot
+
+
+def test_rejects_rotation_with_mismatched_dimension() -> None:
+    rot = SparseRotation(dimension=64, seed=7)
+    with pytest.raises(ValueError, match="does not match"):
+        SQ8Codec(dimension=128, rotation=rot)
 
 
 def test_compress_batch_returns_correct_blob_size(
@@ -61,13 +76,13 @@ def test_asymmetric_dot_approximates_true_dot(
         )
 
 
-def test_determinism_across_instances(tmp_path: Path) -> None:
+def test_determinism_across_instances() -> None:
     rng = np.random.default_rng(seed=7)
     vectors = rng.standard_normal((10, 64)).astype(np.float32)
     vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-    codec_a = SQ8Codec(dimension=64, cache_dir=tmp_path / "a", seed=42)
-    codec_b = SQ8Codec(dimension=64, cache_dir=tmp_path / "b", seed=42)
+    codec_a = SQ8Codec(dimension=64, seed=42)
+    codec_b = SQ8Codec(dimension=64, seed=42)
 
     blobs_a = codec_a.compress_batch(vectors)
     blobs_b = codec_b.compress_batch(vectors)
@@ -75,6 +90,4 @@ def test_determinism_across_instances(tmp_path: Path) -> None:
 
 
 def test_inherits_basecodec() -> None:
-    from turbochroma import BaseCodec
-
     assert issubclass(SQ8Codec, BaseCodec)

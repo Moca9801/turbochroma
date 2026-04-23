@@ -17,11 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package root as `turbochroma.SQ8Codec`.
 - Test suite `tests/test_sq8_codec.py`: roundtrip MAE, blob shape,
   asymmetric-dot sanity, cross-instance determinism.
+- `BaseRotation` abstract base class in `turbochroma.rotations.base`.
+- `SparseRotation` (sign-flip + permutation, O(d)) in
+  `turbochroma.rotations.sparse`, extracted out of `SQ8Codec`. Exported
+  at the package root as `turbochroma.SparseRotation`.
+- Test suite `tests/test_sparse_rotation.py`: determinism,
+  invertibility (1D and 2D), batch-vs-per-vector equivalence, ndim
+  validation.
 
 ### Changed
 
 - `TurboQuantizer` → `SQ8Codec` (class renamed). The old name is not
   aliased because the package has no external users yet.
+- `SQ8Codec` now takes an optional `rotation: BaseRotation` dependency;
+  defaults to `SparseRotation(dimension, seed=seed)`. The previous
+  `cache_dir` parameter was removed: the rotation is deterministic
+  given `(dimension, seed)`, so the on-disk pickle cache was redundant.
 
 <!--
 ## [0.1.0] - YYYY-MM-DD

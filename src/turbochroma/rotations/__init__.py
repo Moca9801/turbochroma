@@ -1,9 +1,20 @@
 """Vector rotations applied before quantization.
 
 Rotations spread distribution outliers across dimensions so scalar or
-product quantization loses less information. This subpackage will host
-``BaseRotation`` (ABC), ``SparseRotation`` (sign-flip + permutation,
-v0.1) and eventually ``HadamardRotation`` / ``LearnedRotation`` (OPQ).
+product quantization loses less information.
 
-Empty in the scaffold commit; populated in subsequent refactors.
+Public classes:
+
+- :class:`BaseRotation` — abstract base class.
+- :class:`SparseRotation` — sign-flip + permutation, O(d). Default in v0.1.
+
+Planned additions:
+
+- ``HadamardRotation`` — structured orthogonal, O(d log d).
+- ``LearnedRotation`` — OPQ-style, learned from a sample.
 """
+
+from turbochroma.rotations.base import BaseRotation
+from turbochroma.rotations.sparse import SparseRotation
+
+__all__ = ["BaseRotation", "SparseRotation"]
