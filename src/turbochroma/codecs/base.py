@@ -105,6 +105,4 @@ class BaseCodec(ABC):
         Used to detect mixed codecs / parameters on the same collection.
         Subclasses with extra parameters (e.g. rotation seed) should override.
         """
-        return (
-            f"1|d={self.dimension}|cv={self.version}|b={self.compressed_size_bytes}"
-        )
+        return f"1|d={self.dimension}|cv={self.version}|b={self.compressed_size_bytes}"

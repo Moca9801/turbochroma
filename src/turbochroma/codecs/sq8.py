@@ -50,9 +50,7 @@ class SQ8Codec(BaseCodec):
         seed: int = 42,
     ) -> None:
         if dimension < 1 or dimension > MAX_COMPRESSED_BLOB_BYTES:
-            msg = (
-                f"dimension must be in [1, {MAX_COMPRESSED_BLOB_BYTES}], got {dimension!r}"
-            )
+            msg = f"dimension must be in [1, {MAX_COMPRESSED_BLOB_BYTES}], got {dimension!r}"
             raise ValueError(msg)
         self.dimension = dimension
         self.compressed_size_bytes = dimension

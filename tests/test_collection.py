@@ -47,7 +47,9 @@ def qcoll(coll: Collection, codec: SQ8Codec) -> QuantizedCollection:
     return QuantizedCollection(coll, codec, refine_factor=4)
 
 
-def test_add_injects_metadata_blob(qcoll: QuantizedCollection, coll: Collection, codec: SQ8Codec) -> None:
+def test_add_injects_metadata_blob(
+    qcoll: QuantizedCollection, coll: Collection, codec: SQ8Codec
+) -> None:
     emb = _l2n_rows(
         np.array(
             [
@@ -107,9 +109,7 @@ def test_query_refine_passthrough_when_rf_is_one() -> None:
     emb2 = _l2n_rows(np.eye(_DIM, dtype=np.float32))
     qc2.add(ids=[f"r{i}" for i in range(4)], embeddings=emb2.tolist())
     qv = _l2n_rows(emb2[0:1])
-    a = col.query(
-        query_embeddings=qv.tolist(), n_results=2, include=["distances", "metadatas"]
-    )
+    a = col.query(query_embeddings=qv.tolist(), n_results=2, include=["distances", "metadatas"])
     b = qc2.query(
         query_embeddings=qv.tolist(),
         n_results=2,

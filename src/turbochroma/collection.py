@@ -150,7 +150,9 @@ class QuantizedCollection:
             msg = f"len(ids)={len(ids)} but embedding matrix has {emb.shape[0]} rows"
             raise ValueError(msg)
         blobs = self._codec.compress_batch(emb)
-        mlist: list[dict[str, Any] | None] = list(cast(Any, metadatas)) if metadatas is not None else [None] * len(ids)
+        mlist: list[dict[str, Any] | None] = (
+            list(cast(Any, metadatas)) if metadatas is not None else [None] * len(ids)
+        )
         out: list[dict[str, Any]] = []
         for i, _ in enumerate(ids):
             row: dict[str, Any] = {**(mlist[i] or {}), self._blob_key: _b64(blobs[i])}

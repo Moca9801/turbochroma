@@ -42,10 +42,7 @@ def run_benchmark(num_vectors: int = 500, dim: int = 1024) -> None:
     t0 = time.time()
     compressed_data = [codec.compress(v) for v in data]
     t_compress = time.time() - t0
-    print(
-        f"Compression: {t_compress:.3f}s "
-        f"({t_compress / num_vectors * 1000:.2f} ms per vector)"
-    )
+    print(f"Compression: {t_compress:.3f}s ({t_compress / num_vectors * 1000:.2f} ms per vector)")
 
     errors: list[float] = []
     t0 = time.time()
@@ -67,10 +64,7 @@ def run_benchmark(num_vectors: int = 500, dim: int = 1024) -> None:
     original_bytes = dim * 4
     compressed_bytes = len(sample_comp)
     ratio = original_bytes / compressed_bytes
-    print(
-        f"\nCompression: {original_bytes} B -> {compressed_bytes} B "
-        f"(ratio: {ratio:.1f}x)"
-    )
+    print(f"\nCompression: {original_bytes} B -> {compressed_bytes} B (ratio: {ratio:.1f}x)")
 
     mae = float(np.mean(errors))
     if mae < 0.02:

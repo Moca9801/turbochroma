@@ -74,11 +74,11 @@ def test_query_embedding_batch_mismatch_raises_runtime() -> None:
         mock.patch.object(qc._coll, "query", return_value=bad),
         pytest.raises(RuntimeError, match="batch size mismatch"),
     ):
-            qc.query(
-                query_embeddings=qv2.tolist(),
-                n_results=1,
-                include=["metadatas"],
-            )
+        qc.query(
+            query_embeddings=qv2.tolist(),
+            n_results=1,
+            include=["metadatas"],
+        )
 
 
 def test_quantized_collection_repr() -> None:
