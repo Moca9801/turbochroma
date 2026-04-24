@@ -24,11 +24,11 @@ from turbochroma.collection import DefaultBlobKey, DefaultBlobspecKey, Quantized
 from turbochroma.rotations import BaseRotation, SparseRotation
 
 __all__ = [
+    "MAX_COMPRESSED_BLOB_BYTES",
     "BaseCodec",
     "BaseRotation",
     "DefaultBlobKey",
     "DefaultBlobspecKey",
-    "MAX_COMPRESSED_BLOB_BYTES",
     "QuantizedCollection",
     "SQ8Codec",
     "SparseRotation",

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import base64
 import uuid
+
+import chromadb
 import numpy as np
 import pytest
-import chromadb
 from chromadb import Collection
 from chromadb.config import Settings
 

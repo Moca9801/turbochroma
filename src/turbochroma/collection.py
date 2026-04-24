@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import base64
 import warnings
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 import numpy as np
 from chromadb import Collection
 from chromadb.api.types import (
     ID,
+    URI,
     Document,
     Embedding,
     Image,
@@ -17,11 +18,9 @@ from chromadb.api.types import (
     Metadatas,
     PyEmbedding,
     QueryResult,
-    URI,
     Where,
     WhereDocument,
 )
-from typing_extensions import TypeAlias
 
 from turbochroma.blob_utils import decode_stored_blob
 from turbochroma.codecs.base import BaseCodec
@@ -151,7 +150,7 @@ class QuantizedCollection:
             msg = f"len(ids)={len(ids)} but embedding matrix has {emb.shape[0]} rows"
             raise ValueError(msg)
         blobs = self._codec.compress_batch(emb)
-        mlist: list[dict[str, Any] | None] = list(metadatas) if metadatas is not None else [None] * len(ids)
+        mlist: list[dict[str, Any] | None] = list(cast(Any, metadatas)) if metadatas is not None else [None] * len(ids)
         out: list[dict[str, Any]] = []
         for i, _ in enumerate(ids):
             row: dict[str, Any] = {**(mlist[i] or {}), self._blob_key: _b64(blobs[i])}
@@ -171,11 +170,11 @@ class QuantizedCollection:
     ) -> None:
         if embeddings is None:
             self._coll.add(
-                ids=ids,  # type: ignore[arg-type]
+                ids=cast(Any, ids),
                 embeddings=None,
-                metadatas=metadatas,
+                metadatas=cast(Any, metadatas),
                 documents=documents,
-                images=images,
+                images=cast(Any, images),
                 uris=uris,
             )
             return
@@ -183,11 +182,11 @@ class QuantizedCollection:
         emb2 = _as_2d_float32(embeddings)
         merged = self._merge_blobs(id_list, emb2, metadatas)
         self._coll.add(
-            ids=ids,  # type: ignore[arg-type]
+            ids=cast(Any, ids),
             embeddings=cast(Any, emb2),
             metadatas=cast(Any, merged),
             documents=documents,
-            images=images,
+            images=cast(Any, images),
             uris=uris,
         )
 
@@ -202,11 +201,11 @@ class QuantizedCollection:
     ) -> None:
         if embeddings is None:
             self._coll.upsert(
-                ids=ids,  # type: ignore[arg-type]
+                ids=cast(Any, ids),
                 embeddings=None,
-                metadatas=metadatas,
+                metadatas=cast(Any, metadatas),
                 documents=documents,
-                images=images,
+                images=cast(Any, images),
                 uris=uris,
             )
             return
@@ -214,11 +213,11 @@ class QuantizedCollection:
         emb2 = _as_2d_float32(embeddings)
         merged = self._merge_blobs(id_list, emb2, metadatas)
         self._coll.upsert(
-            ids=ids,  # type: ignore[arg-type]
+            ids=cast(Any, ids),
             embeddings=cast(Any, emb2),
             metadatas=cast(Any, merged),
             documents=documents,
-            images=images,
+            images=cast(Any, images),
             uris=uris,
         )
 
@@ -245,20 +244,28 @@ class QuantizedCollection:
                 col = cast(Any, raw.get(k))
                 if col is not None and qi < len(col):
                     out_empty[k] = []
-            return out_empty  # type: ignore[return-value]
+            return out_empty
 
-        dists: list[Any] | None = (raw.get("distances") or [None] * len(raw["ids"]))[qi]  # type: ignore[index]
-        mets: list[dict[str, Any] | None] | None = (  # type: ignore[assignment]
-            (raw.get("metadatas") or [None] * len(raw["ids"]))[qi] if raw.get("metadatas") else None
+        dists: list[Any] | None = cast(Any, (raw.get("distances") or [None] * len(raw["ids"])))[qi]
+        mets: list[dict[str, Any] | None] | None = (
+            cast(Any, (raw.get("metadatas") or [None] * len(raw["ids"])))[qi]
+            if raw.get("metadatas")
+            else None
         )
-        embs: list[Any] | None = (  # type: ignore[assignment]
-            (raw.get("embeddings") or [None] * len(raw["ids"]))[qi] if raw.get("embeddings") else None
+        embs: list[Any] | None = (
+            cast(Any, (raw.get("embeddings") or [None] * len(raw["ids"])))[qi]
+            if raw.get("embeddings")
+            else None
         )
-        docs: list[Any] | None = (  # type: ignore[assignment]
-            (raw.get("documents") or [None] * len(raw["ids"]))[qi] if raw.get("documents") else None
+        docs: list[Any] | None = (
+            cast(Any, (raw.get("documents") or [None] * len(raw["ids"])))[qi]
+            if raw.get("documents")
+            else None
         )
-        uris: list[Any] | None = (  # type: ignore[assignment]
-            (raw.get("uris") or [None] * len(raw["ids"]))[qi] if raw.get("uris") else None
+        uris: list[Any] | None = (
+            cast(Any, (raw.get("uris") or [None] * len(raw["ids"])))[qi]
+            if raw.get("uris")
+            else None
         )
 
         scores: list[tuple[int, float]] = []
@@ -313,9 +320,9 @@ class QuantizedCollection:
         if uris is not None:
             re_u = self._order_by_indices(top, list(uris))
             out["uris"] = re_u
-        return out  # type: ignore[return-value]
+        return out
 
-    def query(  # noqa: PLR0913
+    def query(
         self,
         query_embeddings: list[Embedding] | list[PyEmbedding] | _Emb | None = None,
         query_texts: str | list[Document] | None = None,
@@ -337,17 +344,17 @@ class QuantizedCollection:
         if rf <= 1:
             include_pass = list(include) if include is not None else None
             if include_pass:
-                include_pass = [k for k in include_pass if k != "ids"]
+                include_pass = [k for k in include_pass if cast(Any, k) != "ids"]
             return self._coll.query(
-                query_embeddings=query_embeddings,
+                query_embeddings=cast(Any, query_embeddings),
                 query_texts=query_texts,
-                query_images=query_images,
+                query_images=cast(Any, query_images),
                 query_uris=query_uris,
                 ids=ids,
                 n_results=n_results,
                 where=where,
                 where_document=where_document,
-                include=include_pass,
+                include=cast(Any, include_pass),
             )
 
         if query_embeddings is None:
@@ -360,29 +367,29 @@ class QuantizedCollection:
                 )
             include_pass2 = list(include) if include is not None else None
             if include_pass2:
-                include_pass2 = [k for k in include_pass2 if k != "ids"]
+                include_pass2 = [k for k in include_pass2 if cast(Any, k) != "ids"]
             return self._coll.query(
-                query_embeddings=query_embeddings,
+                query_embeddings=cast(Any, query_embeddings),
                 query_texts=query_texts,
-                query_images=query_images,
+                query_images=cast(Any, query_images),
                 query_uris=query_uris,
                 ids=ids,
                 n_results=n_results,
                 where=where,
                 where_document=where_document,
-                include=include_pass2,
+                include=cast(Any, include_pass2),
             )
 
         want: set[str] = set(include) if include is not None else set(_DEFAULT_INCLUDE)
         # Chroma "query" include does not accept "ids" (ids are always returned).
         want = {k for k in want if k != "ids"}
         n_fetch = n_results * rf
-        internal: Include = list((want - {"ids"}) | {"metadatas", "distances"})
+        internal: Include = cast(Any, list((want - {"ids"}) | {"metadatas", "distances"}))
 
         raw: QueryResult = self._coll.query(
-            query_embeddings=query_embeddings,
+            query_embeddings=cast(Any, query_embeddings),
             query_texts=query_texts,
-            query_images=query_images,
+            query_images=cast(Any, query_images),
             query_uris=query_uris,
             ids=ids,
             n_results=n_fetch,
@@ -397,20 +404,18 @@ class QuantizedCollection:
             raise RuntimeError(msg)
 
         rows: list[dict[str, list[Any] | None]] = [
-            self._refine_one_query(
-                qe[qi], qi, raw, n_results, strict=use_strict
-            )  # type: ignore[arg-type]
+            self._refine_one_query(qe[qi], qi, raw, n_results, strict=use_strict)
             for qi in range(nq)
         ]
 
         out: dict[str, list[Any] | list[list[Any]]] = {
-            "ids": [r["ids"] or [] for r in rows],  # type: ignore[union-attr, misc]
+            "ids": [r["ids"] or [] for r in rows],
         }
         for key in ("embeddings", "distances", "metadatas", "documents", "uris"):
             if key not in want or not rows:
                 continue
             if key in rows[0]:
-                out[key] = [cast(Any, r[key]) for r in rows]  # type: ignore[assignment]  # noqa: E501
+                out[key] = [cast(Any, r[key]) for r in rows]
         return cast(QueryResult, out)
 
     def fit_existing(self, batch_size: int = 256) -> int:
@@ -432,8 +437,7 @@ class QuantizedCollection:
             embs = res.get("embeddings")
             if embs is None:
                 break
-            mlist = res.get("metadatas")
-            mlist = mlist or [None] * len(got_ids)
+            mlist: list[Any] = cast(list[Any], res.get("metadatas")) or [None] * len(got_ids)
             arr = np.asarray(embs, dtype=np.float32)
             if arr.ndim != 2 or arr.shape[0] != len(got_ids):
                 msg = "unexpected layout from Chroma 'get' with embeddings"

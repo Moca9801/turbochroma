@@ -5,9 +5,9 @@ from __future__ import annotations
 import uuid
 from unittest import mock
 
+import chromadb
 import numpy as np
 import pytest
-import chromadb
 from chromadb import Collection
 from chromadb.config import Settings
 
@@ -70,8 +70,10 @@ def test_query_embedding_batch_mismatch_raises_runtime() -> None:
         "metadatas": [[{"x": 1}]],
         "distances": [[0.1]],
     }
-    with mock.patch.object(qc._coll, "query", return_value=bad):
-        with pytest.raises(RuntimeError, match="batch size mismatch"):
+    with (
+        mock.patch.object(qc._coll, "query", return_value=bad),
+        pytest.raises(RuntimeError, match="batch size mismatch"),
+    ):
             qc.query(
                 query_embeddings=qv2.tolist(),
                 n_results=1,

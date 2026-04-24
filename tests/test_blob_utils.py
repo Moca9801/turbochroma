@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import base64
 
-import pytest
-
 import hypothesis.strategies as st
+import pytest
 from hypothesis import given, settings
 
 from turbochroma.blob_utils import (
@@ -85,7 +84,7 @@ def test_decode_rejects_oversize_declared_length() -> None:
 @settings(max_examples=120, deadline=None)
 def test_decode_stored_blob_property_never_crashes(b64_body: str, declared: int) -> None:
     """Random strings and lengths only raise ValueError or succeed — no interpreter crash."""
-    try:
+    import contextlib
+
+    with contextlib.suppress(ValueError):
         decode_stored_blob(b64_body, declared)
-    except ValueError:
-        pass

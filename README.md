@@ -4,13 +4,13 @@
 [![CodeQL](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml)
 [![docs](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml)
 
-> Drop-in compression for ChromaDB: **4× less RAM, <1% recall loss, zero ingest-code changes.**
+> **High-performance vector compression for ChromaDB: 4× less RAM, <1% recall loss, zero ingest-code changes.**
 
-`turbochroma` wraps a ChromaDB collection, stores quantized int8 blobs next
-to the original float32 vectors, and performs **asymmetric distance
-computation (ADC)** at query time. You get most of the memory and latency
-benefits of dedicated ANN systems like FAISS or Qdrant without leaving
-Chroma.
+`turbochroma` solves the high RAM consumption problem in ChromaDB as collections grow. Instead of migrating to a more complex vector database (like Qdrant or Milvus), it allows you to:
+
+- **Reduce RAM usage by 4×**: Stores compressed (SQ8 - 8-bit) vectors directly in metadata.
+- **Search faster with ADC**: Uses Asymmetric Distance Computation (ADC) to re-order candidates without fully decompressing vectors.
+- **Maintain precision**: Implements a "Sparse Rotation" step before quantization to minimize information loss (typically <1% recall loss).
 
 > **Status**: pre-alpha (`0.1.0.dev0`). API may change before `0.1.0`. Pin
 > versions for production only after a stable release. See

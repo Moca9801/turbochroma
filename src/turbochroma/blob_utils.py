@@ -17,7 +17,7 @@ _B64_RE = re.compile(r"^[A-Za-z0-9+/]+=*$")
 # Hard cap (bytes) for one stored compressed vector / metadata blob.
 # Fails fast on absurd ``compressed_size_bytes`` (DoS) before length math
 # and decoding. 1 MiB ≈ 1M int8 components — far above common embedders
-# (e.g. 256–16384) while still bounded in hostile metadata.
+# (e.g. 256-16384) while still bounded in hostile metadata.
 MAX_COMPRESSED_BLOB_BYTES = 1_048_576
 
 

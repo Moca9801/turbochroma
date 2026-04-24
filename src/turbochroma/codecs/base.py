@@ -14,6 +14,7 @@ Concrete codecs live next to this module:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import cast
 
 import numpy as np
 
@@ -88,7 +89,7 @@ class BaseCodec(ABC):
 
         Default implementation delegates to :meth:`decompress_batch`.
         """
-        return self.decompress_batch([blob])[0]
+        return cast(np.ndarray, self.decompress_batch([blob])[0])
 
     def fit(self, sample: np.ndarray) -> None:
         """Calibrate the codec on a sample of real vectors.
