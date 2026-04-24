@@ -33,9 +33,12 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: python
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+          # Explicitly exclude folders that might confuse the analyzer or cause timeouts
+          config: |
+            paths-ignore:
+              - '**/node_modules'
+              - '**/.venv'
+              - '**/tests'
 
       - name: Perform analysis
         uses: github/codeql-action/analyze@v3
