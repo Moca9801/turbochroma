@@ -20,6 +20,10 @@ keywords = [
     "retrieval",
     "sq8",
     "scalar-quantization",
+    "llm",
+    "context-retrieval",
+    "re-ranking",
+    "adc",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

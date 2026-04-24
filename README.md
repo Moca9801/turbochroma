@@ -8,10 +8,11 @@
 
 > **High-performance vector compression for ChromaDB: 4× less RAM, <1% recall loss, zero ingest-code changes.**
 
-`turbochroma` solves the high RAM consumption problem in ChromaDB as collections grow. Instead of migrating to a more complex vector database (like Qdrant or Milvus), it allows you to:
+`turbochroma` solves the high RAM consumption problem in ChromaDB as collections grow. Instead of migrating to a more complex vector database (like Qdrant or Milvus), it allows you to scale your **RAG (Retrieval-Augmented Generation)** applications with:
 
 - **Reduce RAM usage by 4×**: Stores compressed (SQ8 - 8-bit) vectors directly in metadata.
 - **Search faster with ADC**: Uses Asymmetric Distance Computation (ADC) to re-order candidates without fully decompressing vectors.
+- **Save VRAM for LLMs/Rerankers**: By performing high-quality re-ranking on the CPU with ADC, you can send **fewer but more relevant** candidates to your GPU-based cross-encoders or LLMs, significantly reducing VRAM pressure and costs.
 - **Maintain precision**: Implements a "Sparse Rotation" step before quantization to minimize information loss (typically <1% recall loss).
 
 > **Status**: `0.1.0` — first **PyPI (beta)** line. The public surface
@@ -23,31 +24,31 @@ Install from PyPI: `pip install turbochroma`
 
 ---
 
-## Why turbochroma
+## Why turbochroma for RAG?
 
 ChromaDB [does not ship native vector quantization](https://github.com/chroma-core/chroma/issues).
-If your collection grows past what your RAM can comfortably hold, your options
+If your RAG collection grows past what your RAM can comfortably hold, your options
 today are:
 
 | Option | Cost |
 |---|---|
 | Migrate to Qdrant / Milvus / Weaviate | Infra rewrite, new ops surface |
-| Reduce embedding dimension (e.g. PCA, smaller model) | Model retraining, recall loss across the board |
+| Reduce embedding dimension (e.g. PCA) | Model retraining, recall loss across the board |
 | **`pip install turbochroma`** | Small code change, no vector DB swap |
 
 ---
 
-## Use cases and real-world applications
+## RAG & LLM Integration Patterns
 
-| Scenario | How turbochroma helps |
-|----------|------------------------|
-| **RAG at scale (many sources, many chunks)** | Each chunk carries a dense vector; large corpora swell RAM and I/O. SQ8 ≈ **4× smaller blobs** in metadata, while ADC can **re-rank** a cheap wide pool before an expensive cross-encoder or LLM. |
-| **Tight RAM or many per-tenant collections** | You keep Chroma; you do not migrate. Less memory per row means more headroom for **multi-tenant** or per-product collections on one host. |
-| **Cheap re-rank before a heavy reranker** | Common pattern: Chroma (fast, approximate) → **wider top‑K** (e.g. `n_results × refine_factor`) → **ADC re-ordering** in O(d) on CPU → top‑N to BGE / cross-encoder. Saves **GPU and latency** on the expensive model. |
-| **Backfill legacy indexes** | Data indexed **without** blobs: `fit_existing()` walks stored embeddings and writes the blob into metadata, **without re-embedding** from text. |
-| **Hybrid RAG (dense + sparse)** | Chroma can still back BM25/keyword; turbochroma only augments the **dense** path with smaller sidecar data and an optional re-rank pass. |
+| Pattern | How turbochroma helps | LLM / User Benefit |
+|---------|-----------------------|--------------------|
+| **High-Precision RAG** | Use ADC to **over-fetch** (e.g., top-40 instead of top-10) and re-rank accurately on CPU. | Better context quality for the LLM without increasing vector DB memory. |
+| **VRAM-Optimized Pipeline** | Filter thousands of candidates on CPU via ADC before hitting GPU models. | **Lower VRAM usage** on GPUs; allows running larger LLMs on the same hardware. |
+| **Multi-Tenant LLM Apps** | 4× less RAM per collection allows hosting **hundreds of tenant-specific** indexes on a single small instance. | Lower infrastructure costs for SaaS applications. |
+| **Cheap Pre-Ranking** | Act as a middle layer: Chroma (approx) → **TurboChroma (ADC re-rank)** → Cross-Encoder (heavy). | Reduces the number of hits passed to expensive cross-encoders, **saving tokens and GPU latency**. |
+| **Legal/Medical Search** | Sparse Rotation preserves outliers and specific terminology better than naive SQ8. | Maintains high recall for specialized domains where every chunk matters. |
 
-**What it is *not* (primarily)**: a replacement for billion-scale FAISS-IVF-PQ clusters, or a substitute for retraining a better embedder. It is a **pragmatic layer** for teams already on Chroma.
+**What it is *not* (primarily)**: a replacement for billion-scale FAISS-IVF-PQ clusters. It is a **pragmatic scaling layer** for production RAG teams already using Chroma.
 
 ### Limitations (read before you ship)
 

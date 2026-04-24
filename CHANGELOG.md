@@ -5,13 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-04-24
 
-### Added
-
-### Changed
-
-### Fixed
+First public release on **PyPI** (beta). Library API: `QuantizedCollection`, `SQ8Codec`,
+`SparseRotation`, `DefaultBlobKey`, `DefaultBlobspecKey`, `MAX_COMPRESSED_BLOB_BYTES`.
 
 ### Documentation
 
@@ -19,8 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backfill) in `STABILITY.md` and a short **Limitations** pointer in the README.
 - Documented **confidentiality and Chroma read access** (not encryption) in
   `SECURITY.md` and the README, for sensitive deployments.
-
-## [0.1.0] - 2026-01-20
+- Added **RAG & LLM Integration Patterns** and **VRAM optimization** benefits to the README.
 
 First public release on **PyPI** (beta). Library API: `QuantizedCollection`, `SQ8Codec`,
 `SparseRotation`, `DefaultBlobKey`, `DefaultBlobspecKey`, `MAX_COMPRESSED_BLOB_BYTES`.
