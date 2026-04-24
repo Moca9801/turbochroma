@@ -1,8 +1,8 @@
 # turbochroma
 
-[![test](https://github.com/Moca9801/turbochroma/actions/workflows/test.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/test.yml)
-[![CodeQL](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml)
-[![docs](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml)
+[![test](https://img.shields.io/github/actions/workflow/status/Moca9801/turbochroma/test.yml?label=test)](https://github.com/Moca9801/turbochroma/actions/workflows/test.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/Moca9801/turbochroma/codeql.yml?label=CodeQL)](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml)
+[![docs](https://img.shields.io/github/actions/workflow/status/Moca9801/turbochroma/docs.yml?label=docs)](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml)
 [![PyPI version](https://img.shields.io/pypi/v/turbochroma.svg)](https://pypi.org/project/turbochroma/)
 [![PyPI - Python](https://img.shields.io/pypi/pyversions/turbochroma.svg)](https://pypi.org/project/turbochroma/)
 
