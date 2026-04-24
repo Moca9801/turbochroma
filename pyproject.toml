@@ -22,7 +22,7 @@ keywords = [
     "scalar-quantization",
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -68,11 +68,13 @@ docs = [
 [project.urls]
 Homepage = "https://github.com/Moca9801/turbochroma"
 Repository = "https://github.com/Moca9801/turbochroma"
+PyPI = "https://pypi.org/project/turbochroma/"
 Issues = "https://github.com/Moca9801/turbochroma/issues"
 Changelog = "https://github.com/Moca9801/turbochroma/blob/main/CHANGELOG.md"
 Stability = "https://github.com/Moca9801/turbochroma/blob/main/STABILITY.md"
 Docs = "https://github.com/Moca9801/turbochroma/tree/main/docs"
 Testing = "https://github.com/Moca9801/turbochroma/blob/main/TESTING.md"
+Releases = "https://github.com/Moca9801/turbochroma/blob/main/RELEASING.md"
 
 [tool.hatch.version]
 path = "src/turbochroma/_version.py"
@@ -96,6 +98,7 @@ include = [
     "CODE_OF_CONDUCT.md",
     "QUALITY.md",
     "TESTING.md",
+    "RELEASING.md",
     "mkdocs.yml",
     "docs/",
     ".pre-commit-config.yaml",

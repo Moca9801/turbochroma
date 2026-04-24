@@ -3,6 +3,8 @@
 [![test](https://github.com/Moca9801/turbochroma/actions/workflows/test.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/test.yml)
 [![CodeQL](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/codeql.yml)
 [![docs](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml/badge.svg)](https://github.com/Moca9801/turbochroma/actions/workflows/docs.yml)
+[![PyPI version](https://img.shields.io/pypi/v/turbochroma.svg)](https://pypi.org/project/turbochroma/)
+[![PyPI - Python](https://img.shields.io/pypi/pyversions/turbochroma.svg)](https://pypi.org/project/turbochroma/)
 
 > **High-performance vector compression for ChromaDB: 4× less RAM, <1% recall loss, zero ingest-code changes.**
 
@@ -12,10 +14,12 @@
 - **Search faster with ADC**: Uses Asymmetric Distance Computation (ADC) to re-order candidates without fully decompressing vectors.
 - **Maintain precision**: Implements a "Sparse Rotation" step before quantization to minimize information loss (typically <1% recall loss).
 
-> **Status**: pre-alpha (`0.1.0.dev0`). API may change before `0.1.0`. Pin
-> versions for production only after a stable release. See
-> [STABILITY.md](STABILITY.md) (semver, deprecations) and
-> [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+> **Status**: `0.1.0` — first **PyPI (beta)** line. The public surface
+> (`QuantizedCollection`, `SQ8Codec`, metadata keys) is expected to stay
+> compatible within `0.1.x`; see [STABILITY.md](STABILITY.md) and
+> [CHANGELOG.md](CHANGELOG.md). See also [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+Install from PyPI: `pip install turbochroma`
 
 ---
 
@@ -73,7 +77,7 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
-Contributors: [CONTRIBUTING.md](CONTRIBUTING.md) (pre-commit, ruff, mypy, `pip-audit`). Quality bar: [QUALITY.md](QUALITY.md), [docs/quality-gates.md](docs/quality-gates.md), [TESTING.md](TESTING.md). API & design site: build with `pip install -e ".[docs]" && mkdocs build` (sources under `docs/`).
+Contributors: [CONTRIBUTING.md](CONTRIBUTING.md) (pre-commit, ruff, mypy, `pip-audit`). Quality bar: [QUALITY.md](QUALITY.md), [docs/quality-gates.md](docs/quality-gates.md), [TESTING.md](TESTING.md). **Releases:** [RELEASING.md](RELEASING.md) (tag `v*` → PyPI via Trusted Publishing). API & design site: `pip install -e ".[docs]" && mkdocs build` (sources under `docs/`).
 
 Optional extras:
 
