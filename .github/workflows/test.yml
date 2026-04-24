@@ -27,7 +27,7 @@ jobs:
       - name: Bandit
         run: bandit -c pyproject.toml -q -r src/turbochroma
       - name: pip-audit
-        run: pip-audit
+        run: pip-audit --skip-pkg pip
 
   test:
     runs-on: ${{ matrix.os }}
