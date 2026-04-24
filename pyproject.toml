@@ -44,6 +44,9 @@ dependencies = [
     "chromadb>=0.5,<1",
 ]
 
+[project.scripts]
+turbochroma = "turbochroma.cli:main"
+
 [project.optional-dependencies]
 fast = ["numba>=0.59"]
 parquet = ["pyarrow>=15"]
