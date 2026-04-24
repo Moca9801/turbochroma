@@ -32,3 +32,22 @@ after decoding. For strict validation
 `QuantizedCollection(..., strict=True)` or `query(..., strict=True)`.
 
 The optional **blob specification** string (see `DefaultBlobspecKey` in the public API) ties each stored base64 payload to a codec/parameter fingerprint. If present, it must match the current codec configuration or, in `strict` mode, re-ranking fails.
+
+## Confidentiality and Chroma access control
+
+`turbochroma` is **not** an encryption or field-level access layer. Quantized
+blobs and metadata live in the same **Chroma** collections your application
+already exposes: anyone with **read access to that collection** (or export of
+its data) can read the **compressed** sidecar data and, where Chroma also stores
+**original embeddings**, those vectors as configured by you.
+
+For **highly sensitive** use cases (e.g. fine-grained PII, regulated health
+records), the control plane is your **infrastructure and Chroma’s access model**:
+isolation, authentication, tenant boundaries, and collection-level permissions
+— not this library. Treat the stored blobs as **sensitive in proportion to the
+sensitivity of the source embeddings**, and size your threats accordingly.
+
+**Risk level (for threat modeling):** typically **low** for generic RAG, higher
+where regulatory or policy obligations require strong confidentiality at rest or
+in shared databases; in those cases, enforce **data residency and read policies**
+independent of `turbochroma`.

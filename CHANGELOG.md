@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Documentation
+
+- Documented **operational risk** of future metadata wire-format changes (re-index /
+  backfill) in `STABILITY.md` and a short **Limitations** pointer in the README.
+- Documented **confidentiality and Chroma read access** (not encryption) in
+  `SECURITY.md` and the README, for sensitive deployments.
+
 ## [0.1.0] - 2026-01-20
 
 First public release on **PyPI** (beta). Library API: `QuantizedCollection`, `SQ8Codec`,

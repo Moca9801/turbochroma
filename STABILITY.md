@@ -16,6 +16,20 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 The [PyPI classifier](https://pypi.org/classifiers/) **Development Status :: 4 - Beta**
 reflects “usable, API still maturing toward 1.0”.
 
+## Metadata wire format and re-indexing
+
+The SQ8 **blob layout** in Chroma `metadatas` (base64 payload, optional
+`DefaultBlobspecKey`, and default metadata key `DefaultBlobKey`) is a **data
+format**, not a network protocol. It is **intended** to stay compatible within
+`0.1.x` as published in the changelog.
+
+If a future **minor/major** release changes the wire format incompatibly, existing
+rows may need a **backfill** (e.g. `fit_existing`, or a full re-embed / re-index of
+affected collections), after reading the [CHANGELOG](CHANGELOG.md). This is
+primarily a **stability and operations** risk, not a library bug: plan upgrades the
+way you would for any stored artifact format (snapshots, migration scripts, or
+re-ingest).
+
 ## Before `1.0.0`
 
 - **Deprecations** — When a symbol is to be removed, a release will mark it
