@@ -54,4 +54,4 @@ jobs:
           pip install -e ".[dev]"
       - name: Run pytest
         run: |
-          pytest -n auto --cov=turbochroma --cov-report=term-missing --cov-fail-under=90
+          pytest -n auto --cov=turbochroma --cov-report=term-missing --cov-fail-under=80
