@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-04-27
+
+### Fixed
+
+- **CI/CD**: Added `build-essential` to Linux test runners to ensure binary dependency compilation.
+- **Security**: Simplified CodeQL configuration for public repository compatibility.
+- **Docs**: Synchronized badges with public repository visibility.
+
 ## [0.1.4] - 2026-04-24
 
 ### Fixed

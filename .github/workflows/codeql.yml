@@ -33,12 +33,6 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: python
-          # Explicitly exclude folders that might confuse the analyzer or cause timeouts
-          config: |
-            paths-ignore:
-              - '**/node_modules'
-              - '**/.venv'
-              - '**/tests'
 
       - name: Perform analysis
         uses: github/codeql-action/analyze@v3
